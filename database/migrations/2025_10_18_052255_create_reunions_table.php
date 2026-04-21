@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             $table->string('nombre_tema');
-            $table->date('fecha');
+            $table->datetime('fecha');
             $table->text('descripcion')->nullable();
             $table->enum('tipo', ['Catequistas', 'Confirmandos', 'Apoderados']);
 

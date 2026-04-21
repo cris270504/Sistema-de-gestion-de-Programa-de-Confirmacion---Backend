@@ -11,12 +11,8 @@ class Confirmando extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nombres',
-        'apellidos',
-        'celular',
-        'genero',
-        'fecha_nacimiento',
-        'grupo_id',
+        'nombres', 'apellidos', 'celular', 'genero',
+        'fecha_nacimiento', 'grupo_id', 'estado',
     ];
 
     public function grupo()

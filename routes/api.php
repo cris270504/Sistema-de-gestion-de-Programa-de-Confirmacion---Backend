@@ -28,6 +28,10 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
 
+    // --- IMPORTAR CONFIRMANDOS EXCEL
+    Route::get('/confirmandos/exportar', [ConfirmandoController::class, 'exportarExcel']);
+    Route::post('/confirmandos/importar', [ConfirmandoController::class, 'importar']);
+
     // --- USERS ---
     Route::get('/users', [UserController::class, 'index'])->middleware('permission:ver usuarios');
     Route::post('/users', [UserController::class, 'store'])->middleware('permission:crear usuarios');
@@ -97,7 +101,7 @@ Route::middleware('auth:api')->group(function () {
     // --- TIPOS APODERADO ---
     Route::get('/tipos-apoderado', [TipoApoderadoController::class, 'index']);
 
-    // --- RECUPERAR CONTRASEÑA
+    // --- RECUPERAR CONTRASEÑA ---
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 
 });

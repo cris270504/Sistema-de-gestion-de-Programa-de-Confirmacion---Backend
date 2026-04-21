@@ -23,13 +23,21 @@ class GrupoDistributionController extends Controller
 
         // 1. Obtener confirmandos
         $hombres = Confirmando::whereNull('grupo_id')
-            ->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+            ->where(function ($query) {
+                $query->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+                    ->orWhereNull('fecha_nacimiento');
+            })
+            ->where('estado', 'en_preparacion')
             ->whereIn('genero', ['M', 'm'])
             ->orderByDesc('fecha_nacimiento')
             ->get();
 
         $mujeres = Confirmando::whereNull('grupo_id')
-            ->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+            ->where(function ($query) {
+                $query->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+                    ->orWhereNull('fecha_nacimiento');
+            })
+            ->where('estado', 'en_preparacion')
             ->whereIn('genero', ['F', 'f'])
             ->orderByDesc('fecha_nacimiento')
             ->get();
@@ -37,7 +45,7 @@ class GrupoDistributionController extends Controller
         $totalConfirmandos = $hombres->count() + $mujeres->count();
 
         if ($totalConfirmandos == 0) {
-            return response()->json(['message' => 'No hay confirmandos disponibles para asignar.'], 400);
+            return response()->json(['message' => 'No hay confirmandos disponibles para asignar. Asegúrate de que tengan género definido y no estén ya en un grupo.'], 400);
         }
 
         DB::beginTransaction();
@@ -95,7 +103,7 @@ class GrupoDistributionController extends Controller
             DB::commit();
 
             // 5. CONSTRUCCIÓN DEL MENSAJE DINÁMICO
-            $mensaje = "";
+            $mensaje = '';
 
             if ($contadorNuevos === $cantidadGrupos) {
                 // Caso A: Todos son nuevos
@@ -112,11 +120,12 @@ class GrupoDistributionController extends Controller
             return response()->json([
                 'message' => $mensaje,
                 'total_asignados' => $totalAsignados,
-                'grupos_nuevos' => $contadorNuevos
+                'grupos_nuevos' => $contadorNuevos,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al procesar grupos',
                 'error' => $e->getMessage(),
