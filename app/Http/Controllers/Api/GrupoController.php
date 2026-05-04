@@ -11,7 +11,7 @@ class GrupoController extends Controller
 {
     public function index()
     {
-        return Grupo::with(['confirmandos', 'catequistas'])->latest()->get();
+        return Grupo::with(['confirmandos.asistencias', 'catequistas'])->latest()->get();
     }
 
     public function show($id)
