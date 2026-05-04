@@ -21,13 +21,17 @@ class GrupoController extends Controller
             'confirmandos.apoderados',
             'confirmandos.sacramentos',
             'confirmandos.requisitos',
+            'confirmandos.asistencias', 
         ])->find($id);
 
-        if (!$grupo) {
-        return response()->json(['message' => 'Grupo no encontrado'], 404);
-    }
+        if (! $grupo) {
+            return response()->json(['message' => 'Grupo no encontrado'], 404);
+        }
+
         return response()->json($grupo);
     }
+
+    // app/Http/Controllers/GruposController.php
 
     public function store(Request $request)
     {
