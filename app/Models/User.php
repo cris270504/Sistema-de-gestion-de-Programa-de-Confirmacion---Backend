@@ -29,6 +29,8 @@ class User extends Authenticatable
         'fecha_nacimiento',
     ];
 
+    protected $guard_name = 'api';
+
     public function grupo()
     {
         return $this->belongsTo(Grupo::class, 'grupo_id');

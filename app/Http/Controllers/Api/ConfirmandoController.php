@@ -17,7 +17,7 @@ class ConfirmandoController extends Controller
     public function index()
     {
         // Añadimos 'apoderados' al eager loading por si los necesitas en la lista
-        return Confirmando::with(['grupo', 'sacramentos', 'apoderados'])->latest()->get();
+        return Confirmando::with(['grupo', 'sacramentos', 'apoderados','asistencias'])->latest()->get();
     }
 
     public function show($id)
