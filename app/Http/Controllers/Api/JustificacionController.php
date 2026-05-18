@@ -65,7 +65,7 @@ class JustificacionController extends Controller
     public function registrarAcuerdo(Request $request)
     {
         $request->validate([
-            'asistencia_id' => 'required|exists:asistencias,id',
+            'asistencia_id' => 'required|exists:asistencia,id',
             'motivo'        => 'required|string|max:255',
             'descripcion'   => 'required|string', 
         ]);
@@ -99,7 +99,7 @@ class JustificacionController extends Controller
     public function completarJustificacion(Request $request)
     {
         $request->validate([
-            'asistencia_id' => 'required|exists:asistencias,id',
+            'asistencia_id' => 'required|exists:asistencia,id',
         ]);
 
         DB::beginTransaction();

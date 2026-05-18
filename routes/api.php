@@ -4,8 +4,8 @@ use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\ConfirmandoController;
 use App\Http\Controllers\Api\GrupoController;
+use App\Http\Controllers\Api\JustificacionController;
 use App\Http\Controllers\Api\GrupoDistributionController;
-use App\Http\Controllers\API\JustificacionController;
 use App\Http\Controllers\Api\PassportAuthController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RequisitoController;
@@ -87,15 +87,11 @@ Route::middleware('auth:api')->group(function () {
 
     // --- JUSTIFICACIONES ---
     Route::prefix('justificaciones')->group(function () {
-        Route::get('/', [JustificacionController::class, 'index'])
-            ->middleware('permission:ver todas las asistencias');
-
-        Route::post('/acuerdo', [JustificacionController::class, 'registrarAcuerdo'])
-            ->middleware('permission:ver todas las asistencias');
-
-        Route::post('/completar', [JustificacionController::class, 'completarJustificacion'])
-            ->middleware('permission:ver todas las asistencias');
+        Route::get('/', [JustificacionController::class, 'index'])->middleware('permission:ver todas las asistencias');
+        Route::post('/acuerdo', [JustificacionController::class, 'registrarAcuerdo'])->middleware('permission:ver todas las asistencias');
+        Route::post('/completar', [JustificacionController::class, 'completarJustificacion'])->middleware('permission:ver todas las asistencias');
     });
+
     // --- SACRAMENTOS ---
     Route::get('/sacramentos', [SacramentoController::class, 'index'])->middleware('permission:ver sacramentos');
     Route::post('/sacramentos', [SacramentoController::class, 'store'])->middleware('permission:crear sacramentos');
