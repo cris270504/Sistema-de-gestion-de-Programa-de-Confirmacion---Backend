@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API; // <-- Obligatorio: API en mayúsculas si tu carpeta es app/Http/Controllers/API
 
 use App\Http\Controllers\Controller;
 use App\Models\Asistencia;
@@ -10,23 +10,17 @@ use Illuminate\Support\Facades\DB;
 
 class JustificacionController extends Controller
 {
-
     /**
      * Listar todos los confirmandos con faltas injustificadas o con acuerdos pendientes.
      */
     public function index()
     {
-        // Buscamos las asistencias que pertenezcan a Confirmandos
+        // Consulta optimizada para TiDB y Eloquent
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
             ->where(function($query) {
-                // Caso 1: La falta es injustificada directamente en la matriz (No se ha hablado con el padre)
                 $query->where('estado', 'falta injustificada')
-                
-                // Caso 2: O ya existe un acuerdo registrado, pero su estado aún no es 'justificado'
-                ->orWhere(function($subQuery) {
-                    $subQuery->whereHas('justificacion', function($q) {
-                        $q->whereIn('estado', ['injustificado', 'pendiente']);
-                    });
+                ->orWhereHas('justificacion', function($q) {
+                    $q->whereIn('estado', ['injustificado', 'pendiente']);
                 });
             })
             ->with([
@@ -42,7 +36,6 @@ class JustificacionController extends Controller
             ])
             ->get();
 
-        // Estructuramos una respuesta limpia y plana para tu Frontend de Vue 3
         $resultado = $faltas->map(function($asistencia) {
             $joven = $asistencia->asistente;
             $apoderado = $joven && $joven->apoderados->count() > 0 ? $joven->apoderados->first() : null;
@@ -64,7 +57,6 @@ class JustificacionController extends Controller
             ];
         });
 
-        // Aseguramos un retorno ordenado por fecha de falta
         return response()->json($resultado->sortByDesc('fecha_falta')->values());
     }
 
@@ -81,7 +73,6 @@ class JustificacionController extends Controller
 
         DB::beginTransaction();
         try {
-            // updateOrCreate evita que se dupliquen filas si el catequista edita el acuerdo antes de que el joven cumpla
             Justificacion::updateOrCreate(
                 ['asistencia_id' => $request->asistencia_id],
                 [
@@ -114,11 +105,9 @@ class JustificacionController extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. Pasamos la justificación a estado 'justificado'
             $justificacion = Justificacion::where('asistencia_id', $request->asistencia_id)->firstOrFail();
             $justificacion->update(['estado' => 'justificado']);
 
-            // 2. Impactamos la tabla asistencias original para que la celda de la Matriz cambie a Azul (Falta Justificada)
             $asistencia = Asistencia::findOrFail($request->asistencia_id);
             $asistencia->update([
                 'estado' => 'falta justificada',
