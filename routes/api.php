@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\ConfirmandoController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\GrupoDistributionController;
+use App\Http\Controllers\API\JustificacionController;
 use App\Http\Controllers\Api\PassportAuthController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RequisitoController;
@@ -83,6 +84,11 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/asistencias/matriz', [AsistenciaController::class, 'matrix'])->middleware('permission:ver asistencias');
     Route::get('/reuniones/{id}/asistencias', [AsistenciaController::class, 'index'])->middleware('permission:ver asistencias');
     Route::post('/reuniones/{id}/asistencias', [AsistenciaController::class, 'store'])->middleware('permission:guardar asistencias');
+
+    // --- JUSTIFICACIONES ---
+    Route::get('/justificaciones', [JustificacionController::class, 'index']);
+    Route::post('/justificaciones/acuerdo', [JustificacionController::class, 'registrarAcuerdo']);
+    Route::post('/justificaciones/completar', [JustificacionController::class, 'completarJustificacion']);
 
     // --- SACRAMENTOS ---
     Route::get('/sacramentos', [SacramentoController::class, 'index'])->middleware('permission:ver sacramentos');

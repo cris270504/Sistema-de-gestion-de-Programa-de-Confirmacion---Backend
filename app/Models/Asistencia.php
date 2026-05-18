@@ -26,4 +26,9 @@ class Asistencia extends Model
     {
         return $this->morphTo();
     }
+
+    public function justificacion()
+    {
+        return $this->hasOne(Justificacion::class, 'asistencia_id');
+    }
 }
