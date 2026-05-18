@@ -10,19 +10,23 @@ use Illuminate\Support\Facades\DB;
 
 class JustificacionController extends Controller
 {
+
     /**
      * Listar todos los confirmandos con faltas injustificadas o con acuerdos pendientes.
      */
     public function index()
     {
-        // Buscamos las asistencias que sean de Confirmandos
+        // Buscamos las asistencias que pertenezcan a Confirmandos
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
             ->where(function($query) {
-                // Caso A: La falta es injustificada en la matriz (Aún no se ha hablado con el padre)
+                // Caso 1: La falta es injustificada directamente en la matriz (No se ha hablado con el padre)
                 $query->where('estado', 'falta injustificada')
-                // Caso B: Ya se habló con el padre pero el acuerdo sigue en estado 'pendiente'
-                ->orWhereHas('justificacion', function($q) {
-                    $q->whereIn('estado', ['injustificado', 'pendiente']);
+                
+                // Caso 2: O ya existe un acuerdo registrado, pero su estado aún no es 'justificado'
+                ->orWhere(function($subQuery) {
+                    $subQuery->whereHas('justificacion', function($q) {
+                        $q->whereIn('estado', ['injustificado', 'pendiente']);
+                    });
                 });
             })
             ->with([
@@ -38,10 +42,9 @@ class JustificacionController extends Controller
             ])
             ->get();
 
-        // Estructuramos una respuesta limpia, plana y predecible para Vue 3
+        // Estructuramos una respuesta limpia y plana para tu Frontend de Vue 3
         $resultado = $faltas->map(function($asistencia) {
             $joven = $asistencia->asistente;
-            // Obtenemos el apoderado único asignado al joven
             $apoderado = $joven && $joven->apoderados->count() > 0 ? $joven->apoderados->first() : null;
             $justificacion = $asistencia->justificacion;
 
@@ -57,12 +60,11 @@ class JustificacionController extends Controller
                 'justificacion_id'     => $justificacion?->id,
                 'motivo'               => $justificacion?->motivo ?? '',
                 'descripcion'          => $justificacion?->descripcion ?? '',
-                // Si no existe registro en la tabla justificaciones, por defecto la UI lo lee como 'injustificado'
                 'estado_justificacion' => $justificacion?->estado ?? 'injustificado' 
             ];
         });
 
-        // Ordenamos por fecha de falta (más reciente primero) de forma reactiva
+        // Aseguramos un retorno ordenado por fecha de falta
         return response()->json($resultado->sortByDesc('fecha_falta')->values());
     }
 
