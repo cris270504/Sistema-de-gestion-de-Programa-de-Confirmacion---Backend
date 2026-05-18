@@ -15,13 +15,15 @@ class JustificacionController extends Controller
      */
     public function index()
     {
-        // Buscamos las asistencias que sean de Confirmandos y cuyo estado en la tabla asistencias
-        // sea 'falta injustificada' O que ya tengan una justificación registrada
+        // Buscamos las asistencias que sean de Confirmandos
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
             ->where(function($query) {
+                // Caso A: La falta es injustificada en la matriz (Aún no se ha hablado con el padre)
                 $query->where('estado', 'falta injustificada')
-                      ->orWhere('estado', 'falta justificada') // Traemos también las que están en proceso
-                      ->orHas('justificacion');
+                // Caso B: Ya se habló con el padre pero el acuerdo sigue en estado 'pendiente'
+                ->orWhereHas('justificacion', function($q) {
+                    $q->whereIn('estado', ['injustificado', 'pendiente']);
+                });
             })
             ->with([
                 'reunion:id,nombre_tema,fecha',
@@ -36,30 +38,31 @@ class JustificacionController extends Controller
             ])
             ->get();
 
-        // Estructuramos una respuesta limpia y plana para tu Frontend de Vue 3
+        // Estructuramos una respuesta limpia, plana y predecible para Vue 3
         $resultado = $faltas->map(function($asistencia) {
             $joven = $asistencia->asistente;
+            // Obtenemos el apoderado único asignado al joven
             $apoderado = $joven && $joven->apoderados->count() > 0 ? $joven->apoderados->first() : null;
             $justificacion = $asistencia->justificacion;
 
             return [
-                'asistencia_id'     => $asistencia->id,
-                'fecha_falta'       => $asistencia->reunion?->fecha,
-                'tema_reunion'      => $asistencia->reunion?->nombre_tema,
-                'confirmando_id'    => $joven?->id,
-                'confirmando'       => $joven ? "{$joven->apellidos}, {$joven->nombres}" : 'Desconocido',
-                'grupo'             => $joven?->grupo?->nombre ?? 'Sin Grupo',
-                'apoderado_nombre'  => $apoderado ? "{$apoderado->apellidos}, {$apoderado->nombres}" : 'No registrado',
-                'apoderado_celular' => $apoderado?->celular ?? 'Sin celular',
-                // Datos de la tabla justificaciones (si existen)
-                'justificacion_id'  => $justificacion?->id,
-                'motivo'            => $justificacion?->motivo ?? '',
-                'descripcion'       => $justificacion?->descripcion ?? '',
-                'estado_justificacion' => $justificacion?->estado ?? 'injustificado' // Valor por defecto si no hay registro
+                'asistencia_id'        => $asistencia->id,
+                'fecha_falta'          => $asistencia->reunion?->fecha,
+                'tema_reunion'         => $asistencia->reunion?->nombre_tema,
+                'confirmando_id'       => $joven?->id,
+                'confirmando'          => $joven ? "{$joven->apellidos}, {$joven->nombres}" : 'Desconocido',
+                'grupo'                => $joven?->grupo?->nombre ?? 'Sin Grupo',
+                'apoderado_nombre'     => $apoderado ? "{$apoderado->apellidos}, {$apoderado->nombres}" : 'No registrado',
+                'apoderado_celular'    => $apoderado?->celular ?? 'Sin celular',
+                'justificacion_id'     => $justificacion?->id,
+                'motivo'               => $justificacion?->motivo ?? '',
+                'descripcion'          => $justificacion?->descripcion ?? '',
+                // Si no existe registro en la tabla justificaciones, por defecto la UI lo lee como 'injustificado'
+                'estado_justificacion' => $justificacion?->estado ?? 'injustificado' 
             ];
         });
 
-        // Ordenamos por fecha de falta (más reciente primero)
+        // Ordenamos por fecha de falta (más reciente primero) de forma reactiva
         return response()->json($resultado->sortByDesc('fecha_falta')->values());
     }
 
@@ -71,18 +74,18 @@ class JustificacionController extends Controller
         $request->validate([
             'asistencia_id' => 'required|exists:asistencias,id',
             'motivo'        => 'required|string|max:255',
-            'descripcion'   => 'required|string', // Obligatorio para el acuerdo de cómo justificará
+            'descripcion'   => 'required|string', 
         ]);
 
         DB::beginTransaction();
         try {
-            // Buscamos si ya existe o creamos la justificación
-            $justificacion = Justificacion::updateOrCreate(
+            // updateOrCreate evita que se dupliquen filas si el catequista edita el acuerdo antes de que el joven cumpla
+            Justificacion::updateOrCreate(
                 ['asistencia_id' => $request->asistencia_id],
                 [
                     'motivo'      => $request->motivo,
                     'descripcion' => $request->descripcion,
-                    'estado'      => 'pendiente' // El padre ya acordó la acción
+                    'estado'      => 'pendiente' 
                 ]
             );
 
@@ -109,11 +112,11 @@ class JustificacionController extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. Actualizamos el estado de la justificación a 'justificado'
+            // 1. Pasamos la justificación a estado 'justificado'
             $justificacion = Justificacion::where('asistencia_id', $request->asistencia_id)->firstOrFail();
             $justificacion->update(['estado' => 'justificado']);
 
-            // 2. Modificamos la asistencia original a 'falta justificada' para que afecte a la matriz global
+            // 2. Impactamos la tabla asistencias original para que la celda de la Matriz cambie a Azul (Falta Justificada)
             $asistencia = Asistencia::findOrFail($request->asistencia_id);
             $asistencia->update([
                 'estado' => 'falta justificada',
