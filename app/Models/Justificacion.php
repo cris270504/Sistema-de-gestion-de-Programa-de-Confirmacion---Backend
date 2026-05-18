@@ -18,9 +18,8 @@ class Justificacion extends Model
         'estado'
     ];
 
-    // Relación con la asistencia original
     public function asistencia()
     {
-        return $this->belongsTo(Asistencia::class);
+        return $this->belongsTo(Asistencia::class, 'asistencia_id');
     }
 }
