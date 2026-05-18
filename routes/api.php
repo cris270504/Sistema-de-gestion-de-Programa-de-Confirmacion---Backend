@@ -86,9 +86,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/reuniones/{id}/asistencias', [AsistenciaController::class, 'store'])->middleware('permission:guardar asistencias');
 
     // --- JUSTIFICACIONES ---
-    Route::get('/justificaciones', [JustificacionController::class, 'index']);
-    Route::post('/justificaciones/acuerdo', [JustificacionController::class, 'registrarAcuerdo']);
-    Route::post('/justificaciones/completar', [JustificacionController::class, 'completarJustificacion']);
+    Route::get('/justificaciones', [JustificacionController::class, 'index'])->middleware('permission:ver todas las asistencias');
+    Route::post('/justificaciones/acuerdo', [JustificacionController::class, 'registrarAcuerdo'])->middleware('permission:ver todas las asistencias');
+    Route::post('/justificaciones/completar', [JustificacionController::class, 'completarJustificacion'])->middleware('permission:ver todas las asistencias');
 
     // --- SACRAMENTOS ---
     Route::get('/sacramentos', [SacramentoController::class, 'index'])->middleware('permission:ver sacramentos');
