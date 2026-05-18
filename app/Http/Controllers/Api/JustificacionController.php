@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API; // <-- Obligatorio: API en mayúsculas si tu carpeta es app/Http/Controllers/API
+namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asistencia;
@@ -15,7 +15,6 @@ class JustificacionController extends Controller
      */
     public function index()
     {
-        // Consulta optimizada para TiDB y Eloquent
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
             ->where(function($query) {
                 $query->where('estado', 'falta injustificada')
