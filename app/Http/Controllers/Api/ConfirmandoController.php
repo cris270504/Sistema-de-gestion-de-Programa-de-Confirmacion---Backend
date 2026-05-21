@@ -17,7 +17,7 @@ class ConfirmandoController extends Controller
     public function index()
     {
         // Añadimos 'apoderados' al eager loading por si los necesitas en la lista
-        return Confirmando::with(['grupo', 'sacramentos', 'apoderados','asistencias'])->latest()->get();
+        return Confirmando::with(['grupo', 'sacramentos', 'apoderados', 'asistencias'])->latest()->get();
     }
 
     public function show($id)
@@ -391,5 +391,27 @@ class ConfirmandoController extends Controller
             'confirmado' => $stats['confirmado'] ?? 0,
             'total' => $stats->sum(),
         ]);
+    }
+
+    public function retirar($id)
+    {
+        $confirmando = Confirmando::find($id);
+
+        if (! $confirmando) {
+            return response()->json([
+                'status' => false,
+                'message' => 'El confirmando no existe.',
+            ], 404);
+        }
+
+        // Actualizamos la columna estado
+        $confirmando->update([
+            'estado' => 'retirado',
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Confirmando retirado del programa exitosamente.',
+        ], 200);
     }
 }

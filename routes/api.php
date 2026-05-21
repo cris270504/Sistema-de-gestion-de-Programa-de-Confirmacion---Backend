@@ -60,6 +60,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/confirmandos/{id}', [ConfirmandoController::class, 'show'])->middleware('permission:ver confirmandos');
     Route::put('/confirmandos/{id}', [ConfirmandoController::class, 'update'])->middleware('permission:editar confirmandos');
     Route::delete('/confirmandos/{id}', [ConfirmandoController::class, 'destroy'])->middleware('permission:eliminar confirmandos');
+    Route::put('/confirmandos/{id}/retirar', [ConfirmandoController::class, 'retirar']);
 
     // --- GRUPOS ---
     Route::get('/grupos', [GrupoController::class, 'index']);
