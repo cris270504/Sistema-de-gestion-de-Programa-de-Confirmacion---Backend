@@ -16,8 +16,18 @@ class ConfirmandoController extends Controller
 {
     public function index()
     {
-        // Añadimos 'apoderados' al eager loading por si los necesitas en la lista
-        return Confirmando::with(['grupo', 'sacramentos', 'apoderados', 'asistencias'])->latest()->get();
+        return Confirmando::where('estado', '!=', 'retirado') // <-- Oculta los dados de baja de la lista ordinaria
+            ->with(['grupo', 'sacramentos', 'apoderados', 'asistencias'])
+            ->withCount([
+                'asistencias as total_faltas_justificadas' => function ($query) {
+                    $query->where('estado', 'falta justificada');
+                },
+                'asistencias as total_tardanzas' => function ($query) {
+                    $query->where('estado', 'tardanza');
+                },
+            ])
+            ->latest()
+            ->get();
     }
 
     public function show($id)
