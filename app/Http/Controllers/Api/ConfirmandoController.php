@@ -16,8 +16,9 @@ class ConfirmandoController extends Controller
 {
     public function index()
     {
-        return Confirmando::where('estado', '!=', 'retirado') // <-- Oculta los dados de baja de la lista ordinaria
+        return Confirmando::where('estado', '!=', 'retirado')
             ->with(['grupo', 'sacramentos', 'apoderados', 'asistencias'])
+            // Laravel usará el método asistencias() que ya apunta a la tabla 'asistencia'
             ->withCount([
                 'asistencias as total_faltas_justificadas' => function ($query) {
                     $query->where('estado', 'falta justificada');
