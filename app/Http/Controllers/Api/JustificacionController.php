@@ -34,10 +34,17 @@ class JustificacionController extends Controller
             ->whereHas('asistente', function ($query) {
                 $query->where('estado', '!=', 'retirado');
             })
-            // ➔ 3. NUEVO FILTRO CRUCIAL: Solo asistencias de reuniones de los últimos 21 días
-            ->whereHas('reunion', function ($query) use ($hace21Dias, $hoy) {
-                $query->where('fecha', '>=', $hace21Dias)
-                    ->where('fecha', '<=', $hoy);
+            // ➔ 3. FILTRO MODIFICADO: Condición de tiempo inteligente
+            ->where(function ($query) use ($hace21Dias, $hoy) {
+                // Subcaso A: La reunión está dentro de la ventana de los 21 días
+                $query->whereHas('reunion', function ($q) use ($hace21Dias, $hoy) {
+                    $q->where('fecha', '>=', $hace21Dias)
+                        ->where('fecha', '<=', $hoy);
+                })
+                // Subcaso B: O NO importa la fecha, siempre y cuando el acuerdo esté 'pendiente'
+                    ->orWhereHas('justificacion', function ($q) {
+                        $q->where('estado', 'pendiente');
+                    });
             })
             // 4. Carga optimizada de relaciones para armar el JSON
             ->with([
