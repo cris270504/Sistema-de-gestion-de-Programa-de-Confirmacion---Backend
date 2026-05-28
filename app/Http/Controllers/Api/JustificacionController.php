@@ -150,7 +150,7 @@ class JustificacionController extends Controller
         if ($justificacion) {
             // Tomamos la descripción actual (si existe) y le añadimos la nota de incumplimiento
             $descripcionActual = $justificacion->descripcion ?? '';
-            $nuevaDescripcion = trim($descripcionActual."\n\n[NOTA: NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
+            $nuevaDescripcion = trim($descripcionActual."\n\n[NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
 
             // 3. Actualizamos la justificación en Supabase
             $justificacion->update([
