@@ -3,15 +3,25 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Grupo;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class GrupoController extends Controller
 {
     public function index()
     {
-        return Grupo::with(['confirmandos.asistencias', 'catequistas'])->latest()->get();
+        $grupos = Grupo::with([
+            'catequistas',
+            'confirmandos.asistencias',
+            'confirmandos' => function ($query) {
+                $query->where('estado', '!=', 'retirado');
+            },
+        ])->get();
+
+        return response()->json($grupos);
     }
 
     public function show($id)
@@ -21,7 +31,7 @@ class GrupoController extends Controller
             'confirmandos.apoderados',
             'confirmandos.sacramentos',
             'confirmandos.requisitos',
-            'confirmandos.asistencias', 
+            'confirmandos.asistencias',
         ])->find($id);
 
         if (! $grupo) {
@@ -100,7 +110,7 @@ class GrupoController extends Controller
 
         $newIds = $data['users'] ?? [];
         $grupo->catequistas()->whereNotIn('id', $newIds)->update(['grupo_id' => null]);
-        \App\Models\User::whereIn('id', $newIds)->update(['grupo_id' => $grupo->id]);
+        User::whereIn('id', $newIds)->update(['grupo_id' => $grupo->id]);
 
         return response()->json([
             'message' => 'Catequistas actualizados',
@@ -112,7 +122,7 @@ class GrupoController extends Controller
     {
         $grupo = Grupo::findOrFail($id);
 
-        $apoderados = \App\Models\Apoderado::whereHas('confirmandos', function ($query) use ($grupo) {
+        $apoderados = Apoderado::whereHas('confirmandos', function ($query) use ($grupo) {
             $query->where('grupo_id', $grupo->id);
         })
             ->with('confirmandos:id,nombres,apellidos')
