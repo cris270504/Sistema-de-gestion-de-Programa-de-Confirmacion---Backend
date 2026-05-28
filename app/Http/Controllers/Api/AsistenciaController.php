@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apoderado;
 use App\Models\Asistencia;
+use App\Models\Confirmando;
 use App\Models\Reunion;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AsistenciaController extends Controller
@@ -67,13 +70,18 @@ class AsistenciaController extends Controller
         $reunionIds = $reuniones->pluck('id');
 
         if ($tipo === 'Confirmandos') {
-            $personas = \App\Models\Confirmando::with(['grupo', 'asistencias' => function ($q) use ($reunionIds) {
-                $q->whereIn('reunion_id', $reunionIds);
-            }])
+            $personas = Confirmando::with([
+                'grupo',
+                'confirmandos' => function ($query) {
+                    $query->where('estado', '!=', 'retirado');
+                },
+                'asistencias' => function ($q) use ($reunionIds) {
+                    $q->whereIn('reunion_id', $reunionIds);
+                }])
                 ->orderBy('apellidos')
                 ->get();
         } elseif ($tipo === 'Catequistas') {
-            $personas = \App\Models\User::role(['catequista', 'coordinador'])
+            $personas = User::role(['catequista', 'coordinador'])
                 ->with(['grupo', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
@@ -81,7 +89,7 @@ class AsistenciaController extends Controller
                 ->get();
 
         } elseif ($tipo === 'Apoderados') {
-            $personas = \App\Models\Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
+            $personas = Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
                 $q->WhereIn('reunion_id', $reunionIds);
             }])
                 ->orderBy('apellidos')
