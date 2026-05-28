@@ -86,7 +86,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            // 'url' => env('DB_URL'), // ➔ La comentamos para evitar que interfiera
+            // 'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -98,9 +98,10 @@ return [
             'search_path' => 'public',
             'sslmode' => 'require',
 
-            // ➔ AÑADE ESTO AQUÍ (Vital para el Pooler 6543 durante la inserción)
+            // ➔ CAMBIA ESTO AQUÍ: Desactivamos la emulación para corregir el tipado estricto
             'options' => [
-                PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_STRINGIFY_FETCHES => false,
             ],
         ],
 
