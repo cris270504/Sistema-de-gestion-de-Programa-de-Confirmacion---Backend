@@ -1,17 +1,16 @@
-# 1. Cambiamos a PHP 8.3 para cumplir con tus dependencias
 FROM php:8.3-apache
 
-# 2. Añadimos libzip-dev y la extensión zip
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
     libzip-dev \
+    libpq-dev \
     zip \
     unzip \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql zip
+    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql pgsql zip
 
 RUN a2enmod rewrite
 
