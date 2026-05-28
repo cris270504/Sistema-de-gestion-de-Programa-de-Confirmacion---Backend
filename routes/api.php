@@ -92,6 +92,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', [JustificacionController::class, 'index'])->middleware('permission:ver todas las asistencias');
         Route::post('/acuerdo', [JustificacionController::class, 'registrarAcuerdo'])->middleware('permission:ver todas las asistencias');
         Route::post('/completar', [JustificacionController::class, 'completarJustificacion'])->middleware('permission:ver todas las asistencias');
+        Route::put('/justificaciones/{asistenciaId}/rechazar', [AsistenciaController::class, 'rechazarAcuerdo']);
     });
 
     // --- SACRAMENTOS ---

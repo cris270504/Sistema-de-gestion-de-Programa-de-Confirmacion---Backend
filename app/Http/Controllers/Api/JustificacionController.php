@@ -18,21 +18,23 @@ class JustificacionController extends Controller
         // Traemos todas las asistencias del tipo Confirmando que sean faltas
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
             ->where(function ($query) {
-                // Caso A: El estado de la asistencia es falta injustificada en la tabla principal
+                // Caso A: Es una falta injustificada pura
                 $query->where('estado', 'falta injustificada')
-                // Caso B: O simplemente tiene una justificación registrada (sea el estado que sea)
-                    ->orWhereHas('justificacion');
+
+                // Caso B: O tiene un acuerdo/justificación, pero que NO haya sido marcado como "no cumplido"
+                    ->orWhereHas('justificacion', function ($q) {
+                        $q->where('estado', '!=', 'no_cumplido');
+                    });
             })
+        // 2. Filtro crucial: Excluir por completo a los chicos que ya se retiraron
             ->whereHas('asistente', function ($query) {
                 $query->where('estado', '!=', 'retirado');
-                // Nota: Si en tu tabla de confirmandos la columna se llama 'activo' (1 o 0),
-                // cambia la línea de arriba por: $query->where('activo', 1);
             })
+        // 3. Carga optimizada de relaciones para armar el JSON
             ->with([
                 'reunion:id,nombre_tema,fecha',
                 'justificacion',
                 'asistente' => function ($query) {
-                    // Aquí mantenemos la carga de las relaciones para el mapa
                     $query->select('id', 'nombres', 'apellidos', 'grupo_id')
                         ->with([
                             'grupo:id,nombre',
@@ -135,5 +137,33 @@ class JustificacionController extends Controller
 
             return response()->json(['status' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
+    }
+
+    public function rechazarAcuerdo($asistenciaId)
+    {
+        // 1. Buscamos la asistencia
+        $asistencia = Asistencia::findOrFail($asistenciaId);
+
+        // 2. Obtenemos la justificación asociada
+        $justificacion = $asistencia->justificacion;
+
+        if ($justificacion) {
+            // Tomamos la descripción actual (si existe) y le añadimos la nota de incumplimiento
+            $descripcionActual = $justificacion->descripcion ?? '';
+            $nuevaDescripcion = trim($descripcionActual."\n\n[NOTA: NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
+
+            // 3. Actualizamos la justificación en Supabase
+            $justificacion->update([
+                'estado' => 'no_cumplido',
+                'descripcion' => $nuevaDescripcion,
+            ]);
+
+            // 4. Regresamos la asistencia principal a su estado original de falta
+            $asistencia->update(['estado' => 'falta injustificada']);
+
+            return response()->json(['message' => 'Falta marcada como no cumplida con éxito.']);
+        }
+
+        return response()->json(['error' => 'No se encontró un acuerdo registrado para esta falta.'], 404);
     }
 }
