@@ -100,7 +100,8 @@ return [
 
             // ➔ CAMBIA ESTO AQUÍ: Desactivamos la emulación para corregir el tipado estricto
             'options' => [
-                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_PERSISTENT => false,
                 PDO::ATTR_STRINGIFY_FETCHES => false,
             ],
         ],
