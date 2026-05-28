@@ -72,12 +72,10 @@ class AsistenciaController extends Controller
         if ($tipo === 'Confirmandos') {
             $personas = Confirmando::with([
                 'grupo',
-                'confirmandos' => function ($query) {
-                    $query->where('estado', '!=', 'retirado');
-                },
                 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
+                ->where('estado', '!=', 'retirado')
                 ->orderBy('apellidos')
                 ->get();
         } elseif ($tipo === 'Catequistas') {
