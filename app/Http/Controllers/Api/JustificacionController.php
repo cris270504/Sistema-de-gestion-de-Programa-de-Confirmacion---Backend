@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Asistencia;
 use App\Models\Justificacion;
 use App\Models\Reunion;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class JustificacionController extends Controller
 {
@@ -21,8 +21,9 @@ class JustificacionController extends Controller
         $hoy = Carbon::now()->endOfDay();
 
         // 2. Hacemos la consulta filtrando por el campo 'fecha' (o como se llame en tu tabla)
-        $reuniones = Reunion::where('fecha', '>=', $hace21Dias)
-            ->where('fecha', '<=', $hoy) // Quita esta línea si las reuniones futuras sí deben mostrarse
+        $reuniones = Reunion::query()
+            ->where('fecha', '>=', $hace21Dias)
+            ->where('fecha', '<=', $hoy)
             ->orderBy('fecha', 'desc')
             ->get();
 
