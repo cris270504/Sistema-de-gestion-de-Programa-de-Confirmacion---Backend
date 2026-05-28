@@ -139,31 +139,26 @@ class JustificacionController extends Controller
         }
     }
 
-    public function rechazarAcuerdo($asistenciaId)
+    public function rechazarAcuerdo($id)
     {
-        // 1. Buscamos la asistencia
-        $asistencia = Asistencia::findOrFail($asistenciaId);
-
-        // 2. Obtenemos la justificación asociada
+        // Tu lógica se mantiene idéntica
+        $asistencia = Asistencia::findOrFail($id);
         $justificacion = $asistencia->justificacion;
 
         if ($justificacion) {
-            // Tomamos la descripción actual (si existe) y le añadimos la nota de incumplimiento
             $descripcionActual = $justificacion->descripcion ?? '';
-            $nuevaDescripcion = trim($descripcionActual."\n\n[NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
+            $nuevaDescripcion = trim($descripcionActual."\n\n[NOTA: NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
 
-            // 3. Actualizamos la justificación en Supabase
             $justificacion->update([
                 'estado' => 'no_cumplido',
                 'descripcion' => $nuevaDescripcion,
             ]);
 
-            // 4. Regresamos la asistencia principal a su estado original de falta
             $asistencia->update(['estado' => 'falta injustificada']);
 
             return response()->json(['message' => 'Falta marcada como no cumplida con éxito.']);
         }
 
-        return response()->json(['error' => 'No se encontró un acuerdo registrado para esta falta.'], 404);
+        return response()->json(['error' => 'No se encontró un acuerdo registrado.'], 404);
     }
 }
