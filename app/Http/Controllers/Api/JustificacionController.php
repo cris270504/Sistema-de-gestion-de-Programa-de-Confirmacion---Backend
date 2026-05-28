@@ -139,26 +139,45 @@ class JustificacionController extends Controller
         }
     }
 
-    public function rechazarAcuerdo($id)
-    {
-        // Tu lógica se mantiene idéntica
+public function rechazarAcuerdo($id)
+{
+    DB::beginTransaction();
+    try {
         $asistencia = Asistencia::findOrFail($id);
         $justificacion = $asistencia->justificacion;
 
-        if ($justificacion) {
-            $descripcionActual = $justificacion->descripcion ?? '';
-            $nuevaDescripcion = trim($descripcionActual."\n\n[NOTA: NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
-
-            $justificacion->update([
-                'estado' => 'no_cumplido',
-                'descripcion' => $nuevaDescripcion,
-            ]);
-
-            $asistencia->update(['estado' => 'falta injustificada']);
-
-            return response()->json(['message' => 'Falta marcada como no cumplida con éxito.']);
+        if (!$justificacion) {
+            DB::rollback();
+            return response()->json(['status' => false, 'message' => 'No se encontró un acuerdo registrado.'], 404);
         }
 
-        return response()->json(['error' => 'No se encontró un acuerdo registrado.'], 404);
+        $descripcionActual = $justificacion->descripcion ?? '';
+        $nuevaDescripcion = trim($descripcionActual . "\n\n[NOTA: NO CUMPLIÓ CON LA ACCIÓN PACTADA]");
+
+        // 1. Cambiamos el estado a no_cumplido y estampamos la nota de auditoría
+        $justificacion->update([
+            'estado' => 'no_cumplido',
+            'descripcion' => $nuevaDescripcion,
+        ]);
+
+        // 2. Saneamos el estado de la asistencia principal en la matriz
+        $asistencia->update([
+            'estado' => 'falta injustificada'
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Falta marcada como no cumplida con éxito y archivada.'
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'status' => false, 
+            'message' => 'Error al procesar la solicitud: ' . $e->getMessage()
+        ], 500);
     }
+}
 }
