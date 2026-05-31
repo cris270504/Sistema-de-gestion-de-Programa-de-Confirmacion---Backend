@@ -34,16 +34,19 @@ class JustificacionController extends Controller
             ->whereHas('asistente', function ($query) {
                 $query->where('estado', '!=', 'retirado');
             })
-            // ➔ 3. FILTRO MODIFICADO: Condición de tiempo inteligente
+            // ➔ 3. FILTRO CORREGIDO: El límite de tiempo solo aplica a las injustificadas puras
             ->where(function ($query) use ($hace21Dias, $hoy) {
-                // Subcaso A: La reunión está dentro de la ventana de los 21 días
-                $query->whereHas('reunion', function ($q) use ($hace21Dias, $hoy) {
-                    $q->where('fecha', '>=', $hace21Dias)
-                        ->where('fecha', '<=', $hoy);
+                // Caso A: Si la falta tiene un trámite (pendiente o justificado), pasa libre sin importar la fecha
+                $query->whereHas('justificacion', function ($q) {
+                    $q->whereIn('estado', ['pendiente', 'justificado']);
                 })
-                // Subcaso B: O NO importa la fecha, siempre y cuando el acuerdo esté 'pendiente'
-                    ->orWhereHas('justificacion', function ($q) {
-                        $q->where('estado', 'pendiente');
+                // Caso B: Si es injustificada pura, obligatoriamente debe estar dentro de los 21 días
+                    ->orWhere(function ($q) use ($hace21Dias, $hoy) {
+                        $q->where('estado', 'falta injustificada')
+                            ->whereHas('reunion', function ($subQ) use ($hace21Dias, $hoy) {
+                                $subQ->where('fecha', '>=', $hace21Dias)
+                                    ->where('fecha', '<=', $hoy);
+                            });
                     });
             })
             // 4. Carga optimizada de relaciones para armar el JSON
