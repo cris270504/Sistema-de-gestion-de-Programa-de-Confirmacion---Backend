@@ -387,6 +387,51 @@ class ConfirmandoController extends Controller
     {
         return Excel::download(new ConfirmandosPorGruposExport, 'Confirmandos_por_Grupos.xlsx');
     }
+    
+    public function obtenerPerfilCompleto($id)
+    {
+        $confirmando = Confirmando::with([
+            'grupo:id,nombre',
+            'apoderados', // Traemos al apoderado si existe
+            'asistencias' => function ($query) {
+                // Traemos TODAS las asistencias asociadas a su reunión, ordenadas de la más reciente a la más antigua
+                $query->with('reunion:id,nombre_tema,fecha')->orderBy('created_at', 'desc');
+            }
+        ])->findOrFail($id);
+
+        // Calculamos las estadísticas de asistencia en memoria
+        $estadisticas = [
+            'asistencias' => $confirmando->asistencias->where('estado', 'asistió')->count(),
+            'tardanzas' => $confirmando->asistencias->where('estado', 'tardanza')->count(),
+            'justificadas' => $confirmando->asistencias->where('estado', 'falta justificada')->count(),
+            'injustificadas' => $confirmando->asistencias->where('estado', 'falta injustificada')->count(),
+        ];
+
+        // Mapeamos los sacramentos faltantes (Ajusta los nombres de las columnas según tu base de datos)
+        $sacramentos = [];
+        if ($confirmando->falta_bautizo) $sacramentos[] = 'Bautizo';
+        if ($confirmando->falta_comunion) $sacramentos[] = 'Primera Comunión';
+        $sacramentos_texto = empty($sacramentos) ? 'Ninguno (Tiene todos)' : implode(' y ', $sacramentos);
+
+        return response()->json([
+            'status' => true,
+            'joven' => [
+                'nombres' => $confirmando->nombres,
+                'apellidos' => $confirmando->apellidos,
+                'grupo' => $confirmando->grupo ? $confirmando->grupo->nombre : 'Sin Grupo',
+                'sacramentos_faltantes' => $sacramentos_texto,
+            ],
+            'apoderado' => $confirmando->apoderados->first(), // Tomamos el primer apoderado
+            'estadisticas' => $estadisticas,
+            'historial_asistencias' => $confirmando->asistencias->map(function ($asis) {
+                return [
+                    'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
+                    'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
+                    'estado' => $asis->estado
+                ];
+            })
+        ]);
+    }
 
     public function getRetentionStats()
     {
