@@ -434,13 +434,18 @@ class ConfirmandoController extends Controller
             ],
             'apoderado' => $confirmando->apoderados->first(),
             'estadisticas' => $estadisticas,
-            'historial_asistencias' => $confirmando->asistencias->map(function ($asis) {
-                return [
-                    'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
-                    'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
-                    'estado' => $asis->estado,
-                ];
-            }),
+            'historial_asistencias' => $confirmando->asistencias
+                ->sortByDesc(function ($asis) {
+                    return $asis->reunion ? $asis->reunion->fecha : $asis->created_at;
+                })
+                ->values()
+                ->map(function ($asis) {
+                    return [
+                        'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
+                        'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
+                        'estado' => $asis->estado
+                    ];
+                }),
         ]);
     }
 
