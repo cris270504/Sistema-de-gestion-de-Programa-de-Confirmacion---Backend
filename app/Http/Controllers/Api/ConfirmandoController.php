@@ -17,8 +17,13 @@ class ConfirmandoController extends Controller
     public function index()
     {
         return Confirmando::where('estado', '!=', 'retirado')
-            ->with(['grupo', 'sacramentos', 'apoderados', 'asistencias'])
-            // Laravel usará el método asistencias() que ya apunta a la tabla 'asistencia'
+            ->with([
+                'grupo',
+                'sacramentos',
+                'apoderados',
+                'asistencias.justificacion',
+                'asistencias.reunion:id,fecha',
+            ])
             ->withCount([
                 'asistencias as total_faltas_justificadas' => function ($query) {
                     $query->where('estado', 'falta justificada');
@@ -33,7 +38,6 @@ class ConfirmandoController extends Controller
 
     public function show($id)
     {
-        // Cargamos 'apoderados' para que se vean al editar
         return Confirmando::with(['grupo', 'sacramentos', 'requisitos', 'apoderados'])->findOrFail($id);
     }
 
@@ -278,7 +282,7 @@ class ConfirmandoController extends Controller
             return response()->json([]);
         }
 
-        return \App\Models\Apoderado::where('apellidos', 'LIKE', "%{$query}%")
+        return Apoderado::where('apellidos', 'LIKE', "%{$query}%")
             ->orWhere('nombres', 'LIKE', "%{$query}%")
             ->limit(5)
             ->get();
@@ -387,30 +391,37 @@ class ConfirmandoController extends Controller
     {
         return Excel::download(new ConfirmandosPorGruposExport, 'Confirmandos_por_Grupos.xlsx');
     }
-    
+
     public function obtenerPerfilCompleto($id)
     {
         $confirmando = Confirmando::with([
             'grupo:id,nombre',
-            'apoderados', // Traemos al apoderado si existe
+            'apoderados',
+            // 1. Sintaxis correcta para traer reunión y justificación al mismo tiempo
             'asistencias' => function ($query) {
-                // Traemos TODAS las asistencias asociadas a su reunión, ordenadas de la más reciente a la más antigua
-                $query->with('reunion:id,nombre_tema,fecha')->orderBy('created_at', 'desc');
-            }
+                $query->with(['reunion:id,nombre_tema,fecha', 'justificacion'])
+                    ->orderBy('created_at', 'desc');
+            },
         ])->findOrFail($id);
 
-        // Calculamos las estadísticas de asistencia en memoria
         $estadisticas = [
             'asistencias' => $confirmando->asistencias->where('estado', 'asistió')->count(),
             'tardanzas' => $confirmando->asistencias->where('estado', 'tardanza')->count(),
             'justificadas' => $confirmando->asistencias->where('estado', 'falta justificada')->count(),
-            'injustificadas' => $confirmando->asistencias->where('estado', 'falta injustificada')->count(),
+            'injustificadas' => $confirmando->asistencias->filter(function ($asis) {
+                $tieneAcuerdoPendiente = $asis->justificacion && $asis->justificacion->estado === 'pendiente';
+
+                return $asis->estado === 'falta injustificada' && ! $tieneAcuerdoPendiente;
+            })->count(),
         ];
 
-        // Mapeamos los sacramentos faltantes (Ajusta los nombres de las columnas según tu base de datos)
         $sacramentos = [];
-        if ($confirmando->falta_bautizo) $sacramentos[] = 'Bautizo';
-        if ($confirmando->falta_comunion) $sacramentos[] = 'Primera Comunión';
+        if ($confirmando->falta_bautizo) {
+            $sacramentos[] = 'Bautizo';
+        }
+        if ($confirmando->falta_comunion) {
+            $sacramentos[] = 'Primera Comunión';
+        }
         $sacramentos_texto = empty($sacramentos) ? 'Ninguno (Tiene todos)' : implode(' y ', $sacramentos);
 
         return response()->json([
@@ -421,15 +432,15 @@ class ConfirmandoController extends Controller
                 'grupo' => $confirmando->grupo ? $confirmando->grupo->nombre : 'Sin Grupo',
                 'sacramentos_faltantes' => $sacramentos_texto,
             ],
-            'apoderado' => $confirmando->apoderados->first(), // Tomamos el primer apoderado
+            'apoderado' => $confirmando->apoderados->first(),
             'estadisticas' => $estadisticas,
             'historial_asistencias' => $confirmando->asistencias->map(function ($asis) {
                 return [
                     'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
                     'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
-                    'estado' => $asis->estado
+                    'estado' => $asis->estado,
                 ];
-            })
+            }),
         ]);
     }
 
