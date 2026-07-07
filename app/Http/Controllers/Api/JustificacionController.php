@@ -98,7 +98,7 @@ class JustificacionController extends Controller
             'asistencia_id' => 'required|exists:asistencia,id',
             'motivo' => 'required|string|max:255',
             'descripcion' => 'required|string',
-            'fecha_acuerdo' => 'required|date|after_or_equal:today',
+            'fecha_acuerdo' => 'required|date',
         ]);
 
         DB::beginTransaction();
@@ -108,6 +108,7 @@ class JustificacionController extends Controller
                 [
                     'motivo' => $request->motivo,
                     'descripcion' => $request->descripcion,
+                    'fecha_acuerdo' => $request->fecha_acuerdo,
                     'estado' => 'pendiente',
                     'fecha_acuerdo' => $request->fecha_acuerdo,
                 ]
