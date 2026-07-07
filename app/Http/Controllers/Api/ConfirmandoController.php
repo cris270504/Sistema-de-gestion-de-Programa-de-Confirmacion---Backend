@@ -16,14 +16,13 @@ class ConfirmandoController extends Controller
 {
     public function index()
     {
-        return Confirmando::where('estado', '!=', 'retirado')
-            ->with([
-                'grupo',
-                'sacramentos',
-                'apoderados',
-                'asistencias.justificacion',
-                'asistencias.reunion:id,fecha',
-            ])
+        return Confirmando::with([
+            'grupo',
+            'sacramentos',
+            'apoderados',
+            'asistencias.justificacion',
+            'asistencias.reunion:id,fecha',
+        ])
             ->withCount([
                 'asistencias as total_faltas_justificadas' => function ($query) {
                     $query->where('estado', 'falta justificada');
@@ -443,7 +442,7 @@ class ConfirmandoController extends Controller
                     return [
                         'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
                         'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
-                        'estado' => $asis->estado
+                        'estado' => $asis->estado,
                     ];
                 }),
         ]);
