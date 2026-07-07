@@ -443,6 +443,7 @@ class ConfirmandoController extends Controller
                         'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
                         'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
                         'estado' => $asis->estado,
+                        'justificacion_estado' => $asis->justificacion ? $asis->justificacion->estado : null,
                     ];
                 }),
         ]);
