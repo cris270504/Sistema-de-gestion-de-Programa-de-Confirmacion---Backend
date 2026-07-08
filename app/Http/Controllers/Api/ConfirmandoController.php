@@ -16,12 +16,9 @@ class ConfirmandoController extends Controller
 {
 public function index()
     {
-        return Confirmando::select('id', 'nombres', 'apellidos', 'celular', 'grupo_id', 'estado', 'created_at')
-            ->with([
-                // Especificamos solo las columnas necesarias tras los dos puntos (:)
-                // IMPORTANTE: Siempre debes incluir el 'id', o Laravel no sabrá cómo unirlos
+        return Confirmando::with([
                 'grupo:id,nombre',
-                'sacramentos:id,nombre',
+                'sacramentos:id,nombre,color',
                 'apoderados:id,nombres,apellidos,celular',
                 
                 // Reducimos drásticamente el peso de la tabla asistencias
