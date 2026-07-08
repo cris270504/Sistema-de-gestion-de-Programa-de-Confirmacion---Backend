@@ -17,8 +17,8 @@ class ConfirmandoController extends Controller
 public function index()
     {
         return Confirmando::with([
-                'grupo:id,nombre',
-                'sacramentos:id,nombre,color',
+                'grupo:id,nombre,color',
+                'sacramentos:id,nombre',
                 'apoderados:id,nombres,apellidos,celular',
                 
                 // Reducimos drásticamente el peso de la tabla asistencias
