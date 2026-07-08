@@ -14,15 +14,24 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
 {
-    public function index()
+public function index()
     {
-        return Confirmando::with([
-            'grupo',
-            'sacramentos',
-            'apoderados',
-            'asistencias.justificacion',
-            'asistencias.reunion:id,fecha',
-        ])
+        return Confirmando::select('id', 'nombres', 'apellidos', 'celular', 'grupo_id', 'estado', 'created_at')
+            ->with([
+                'grupo:id,nombre',
+                'sacramentos:id,nombre',
+                'apoderados:id,nombres,apellidos,celular',
+                
+                'asistencias' => function ($query) {
+                    $query->select('id', 'confirmando_id', 'reunion_id', 'estado', 'created_at');
+                },
+                
+                // Solo nos importa el estado del trámite para pintar el "Pendiente"
+                'asistencias.justificacion:id,asistencia_id,estado',
+                
+                // Solo necesitamos la fecha para que Vue pueda ordenarlas
+                'asistencias.reunion:id,fecha',
+            ])
             ->withCount([
                 'asistencias as total_faltas_justificadas' => function ($query) {
                     $query->where('estado', 'falta justificada');
