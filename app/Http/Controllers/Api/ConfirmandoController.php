@@ -18,12 +18,15 @@ public function index()
     {
         return Confirmando::select('id', 'nombres', 'apellidos', 'celular', 'grupo_id', 'estado', 'created_at')
             ->with([
+                // Especificamos solo las columnas necesarias tras los dos puntos (:)
+                // IMPORTANTE: Siempre debes incluir el 'id', o Laravel no sabrá cómo unirlos
                 'grupo:id,nombre',
                 'sacramentos:id,nombre',
                 'apoderados:id,nombres,apellidos,celular',
                 
+                // Reducimos drásticamente el peso de la tabla asistencias
                 'asistencias' => function ($query) {
-                    $query->select('id', 'confirmando_id', 'reunion_id', 'estado', 'created_at');
+                    $query->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
                 },
                 
                 // Solo nos importa el estado del trámite para pintar el "Pendiente"
