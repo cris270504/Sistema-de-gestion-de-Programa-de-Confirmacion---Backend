@@ -71,21 +71,18 @@ class AsistenciaController extends Controller
         $reunionIds = $reuniones->pluck('id');
 
         if ($tipo === 'Confirmandos') {
-            $queryConfirmandos = Confirmando::with([
+            $query = Confirmando::with([
                 'grupo',
                 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
-                ->where('estado', '!=', 'retirado')
-                ->orderBy('apellidos')
-                ->get();
+                ->where('estado', '!=', 'retirado');
 
-            if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
-                // Solo traemos a los jóvenes cuyo grupo_id coincida con los grupos del catequista
-                $queryConfirmandos->whereIn('grupo_id', $user->grupos->pluck('id'));
+            if (!$user->hasRole('coordinador') && !$user->can('ver todas las asistencias')) {
+                $query->whereIn('grupo_id', $user->grupos->pluck('id'));
             }
 
-            $personas = $queryConfirmandos->orderBy('apellidos')->get();
+            $personas = $query->orderBy('apellidos')->get();
         } elseif ($tipo === 'Catequistas') {
             $personas = User::role(['catequista', 'coordinador'])
                 ->with(['grupos', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
@@ -96,10 +93,10 @@ class AsistenciaController extends Controller
 
         } elseif ($tipo === 'Apoderados') {
             $personas = Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
-                $q->WhereIn('reunion_id', $reunionIds);
+                $q->whereIn('reunion_id', $reunionIds);
             }])
-                ->orderBy('apellidos')
-                ->get();
+            ->orderBy('apellidos')
+            ->get();
         }
 
         return response()->json([
