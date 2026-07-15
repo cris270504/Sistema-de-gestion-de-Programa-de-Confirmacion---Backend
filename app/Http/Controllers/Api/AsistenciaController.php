@@ -48,10 +48,11 @@ class AsistenciaController extends Controller
         return response()->json(['message' => 'Asistencia guardada correctamente']);
     }
 
-    public function matrix(Request $request)
+public function matrix(Request $request)
     {
         $tipo = $request->query('tipo', 'Confirmandos');
         $fecha = $request->query('fecha');
+        $user = $request->user(); // <-- NUEVO: Obtenemos al usuario logueado
 
         $queryReuniones = Reunion::where('tipo', $tipo)->orderBy('fecha', 'asc');
 
@@ -70,33 +71,21 @@ class AsistenciaController extends Controller
         $reunionIds = $reuniones->pluck('id');
 
         if ($tipo === 'Confirmandos') {
-            $personas = Confirmando::with([
+            $queryConfirmandos = Confirmando::with([
                 'grupo',
                 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
-                ->where('estado', '!=', 'retirado')
-                ->orderBy('apellidos')
-                ->get();
+                ->where('estado', '!=', 'retirado');
+
+            // <-- NUEVO FILTRO DE SEGURIDAD BACKEND -->
+            if (!$user->hasRole('coordinador') && !$user->can('ver todas las asistencias')) {
+                // Solo traemos a los jóvenes cuyo grupo_id coincida con los grupos del catequista
+                $queryConfirmandos->whereIn('grupo_id', $user->grupos->pluck('id'));
+            }
+
+            $personas = $queryConfirmandos->orderBy('apellidos')->get();
+            
         } elseif ($tipo === 'Catequistas') {
-            $personas = User::role(['catequista', 'coordinador'])
-                ->with(['grupos', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
-                    $q->whereIn('reunion_id', $reunionIds);
-                }])
-                ->orderBy('name')
-                ->get();
-
-        } elseif ($tipo === 'Apoderados') {
-            $personas = Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
-                $q->WhereIn('reunion_id', $reunionIds);
-            }])
-                ->orderBy('apellidos')
-                ->get();
-        }
-
-        return response()->json([
-            'reuniones' => $reuniones,
-            'personas' => $personas,
-        ]);
-    }
+            // ... tu código de catequistas sigue igual ...
 }

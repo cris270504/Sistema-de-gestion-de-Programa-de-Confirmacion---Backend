@@ -14,34 +14,38 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
 {
-    public function index()
+    public function index(Request $request) // 1. Recibimos la Request
     {
-        return Confirmando::with([
+        $user = $request->user();
+
+        // 2. Iniciamos la consulta base
+        $query = Confirmando::with([
             'grupo:id,nombre,color',
             'sacramentos:id,nombre',
             'apoderados:id,nombres,apellidos,celular',
-
-            // Reducimos drásticamente el peso de la tabla asistencias
-            'asistencias' => function ($query) {
-                $query->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
+            'asistencias' => function ($q) {
+                $q->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
             },
-
-            // Solo nos importa el estado del trámite para pintar el "Pendiente"
             'asistencias.justificacion:id,asistencia_id,estado',
-
-            // Solo necesitamos la fecha para que Vue pueda ordenarlas
             'asistencias.reunion:id,fecha',
         ])
             ->withCount([
-                'asistencias as total_faltas_justificadas' => function ($query) {
-                    $query->where('estado', 'falta justificada');
+                'asistencias as total_faltas_justificadas' => function ($q) {
+                    $q->where('estado', 'falta justificada');
                 },
-                'asistencias as total_tardanzas' => function ($query) {
-                    $query->where('estado', 'tardanza');
+                'asistencias as total_tardanzas' => function ($q) {
+                    $q->where('estado', 'tardanza');
                 },
-            ])
-            ->latest()
-            ->get();
+            ]);
+
+        // 3. Aplicamos el filtro de seguridad (Si no es coordinador)
+        if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
+            // Filtramos los confirmandos cuyos grupo_id estén en el array de grupos del catequista
+            $query->whereIn('grupo_id', $user->grupos->pluck('id'));
+        }
+
+        // 4. Ejecutamos
+        return $query->latest()->get();
     }
 
     public function show($id)

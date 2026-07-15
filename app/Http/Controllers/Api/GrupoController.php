@@ -6,22 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Grupo;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class GrupoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $grupos = Grupo::with([
+        $user = $request->user();
+
+        // 1. Preparamos la consulta base
+        $query = Grupo::with([
             'catequistas',
             'confirmandos.asistencias',
-            'confirmandos' => function ($query) {
-                $query->where('estado', '!=', 'retirado');
+            'confirmandos' => function ($q) {
+                $q->where('estado', '!=', 'retirado');
             },
-        ])->get();
+        ]);
 
-        return response()->json($grupos);
+        // 2. Filtro de Seguridad: Si NO es coordinador y NO tiene permiso global
+        if (! $user->hasRole('coordinador') && ! $user->can('ver todos los grupos')) {
+            // Buscamos solo los grupos donde él esté registrado en la tabla pivote
+            $query->whereHas('catequistas', function ($q) use ($user) {
+                // Especificamos la columna de la tabla pivote
+                $q->where('catequista_grupo.user_id', $user->id);
+            });
+        }
+
+        return response()->json($query->get());
     }
 
     public function show($id)
@@ -101,7 +112,7 @@ class GrupoController extends Controller
         return response()->json(null, 204);
     }
 
-public function syncCatequists(Request $request, Grupo $grupo)
+    public function syncCatequists(Request $request, Grupo $grupo)
     {
         $data = $request->validate([
             'users' => ['nullable', 'array'],
