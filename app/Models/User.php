@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,7 +13,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory,HasRoles,Notifiable;
 
     /**
@@ -31,9 +32,10 @@ class User extends Authenticatable
 
     protected $guard_name = 'api';
 
-    public function grupo()
+    public function grupos()
     {
-        return $this->belongsTo(Grupo::class, 'grupo_id');
+        return $this->belongsToMany(Grupo::class, 'catequista_grupo', 'user_id', 'grupo_id')
+            ->withTimestamps();
     }
 
     public function reunionesAsignadas()

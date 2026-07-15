@@ -12,12 +12,12 @@ class UserController extends Controller
 {
     public function index()
     {
-        return User::with(['roles', 'grupo'])->latest()->get();
+        return User::with(['roles', 'grupos'])->latest()->get();
     }
 
     public function show($id)
     {
-        return User::with(['roles', 'grupo'])->findOrFail($id);
+        return User::with(['roles', 'grupos'])->findOrFail($id);
     }
 
     public function store(Request $request)
@@ -25,11 +25,13 @@ class UserController extends Controller
         $validatedData = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'dni' => ['required', 'string', 'max:8', 'unique:users,dni'],
-            'celular' => ['nullable','string','max:9'],
+            'celular' => ['nullable', 'string', 'max:9'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
-            'fecha_nacimiento' => ['date','nullable'],
+            'fecha_nacimiento' => ['date', 'nullable'],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name'],
+            'grupo_ids' => ['nullable', 'array'],
+            'grupo_ids.*' => ['exists:grupos,id'],
         ]);
 
         // 6. Crear el usuario
@@ -45,6 +47,10 @@ class UserController extends Controller
         // 7. Sincronizar los roles
         $user->syncRoles($validatedData['roles']);
 
+        if (!empty($validatedData['grupo_ids'])) {
+            $user->grupos()->sync($validatedData['grupo_ids']);
+        }
+
         return response()->json([
             'message' => 'Usuario creado con éxito',
             'user' => [
@@ -54,6 +60,7 @@ class UserController extends Controller
                 'email' => $user->email,
                 'fecha_nacimiento' => $user->fecha_nacimiento,
                 'roles' => $user->roles->pluck('name'),
+                'grupos' => $user->grupos,
             ],
         ], 201);
 
@@ -67,7 +74,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:100'],
             'dni' => ['sometimes', 'required', 'string', 'max:8', Rule::unique('users')->ignore($user->id)],
-            'celular' => ['sometimes','nullable','string','max:9'],
+            'celular' => ['sometimes', 'nullable', 'string', 'max:9'],
             'email' => [
                 'sometimes', 'required', 'email', 'max:150',
                 Rule::unique('users')->ignore($user->id),
@@ -76,6 +83,8 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'roles' => ['sometimes', 'array'], // 'sometimes' permite no enviar roles si no cambian
             'roles.*' => ['string', 'exists:roles,name'],
+            'grupo_ids' => ['sometimes', 'nullable', 'array'],
+            'grupo_ids.*' => ['exists:grupos,id'],
         ]);
 
         // Actualizar campos solo si vienen en la petición
@@ -89,7 +98,7 @@ class UserController extends Controller
             $user->email = $data['email'];
         }
 
-        if (isset($data['fecha_nacimiento'])){
+        if (isset($data['fecha_nacimiento'])) {
             $user->fecha_nacimiento = $data['fecha_nacimiento'];
         }
 
@@ -105,7 +114,11 @@ class UserController extends Controller
 
         $user->save();
 
-        $user->load('roles');
+        if (array_key_exists('grupo_ids', $data)) {
+            $user->grupos()->sync($data['grupo_ids'] ?? []);
+        }
+
+        $user->load('roles','grupos');
 
         return response()->json([
             'message' => 'Usuario actualizado con éxito',
@@ -117,6 +130,7 @@ class UserController extends Controller
                 'email' => $user->email,
                 'fecha_nacimiento' => $user->fecha_nacimiento,
                 'roles' => $user->roles->pluck('name'),
+                'grupos' => $user->grupos
             ],
         ]);
     }

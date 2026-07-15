@@ -80,7 +80,7 @@ class AsistenciaController extends Controller
                 ->get();
         } elseif ($tipo === 'Catequistas') {
             $personas = User::role(['catequista', 'coordinador'])
-                ->with(['grupo', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
+                ->with(['grupos', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
                 ->orderBy('name')

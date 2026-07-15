@@ -14,24 +14,24 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
 {
-public function index()
+    public function index()
     {
         return Confirmando::with([
-                'grupo:id,nombre,color',
-                'sacramentos:id,nombre',
-                'apoderados:id,nombres,apellidos,celular',
-                
-                // Reducimos drásticamente el peso de la tabla asistencias
-                'asistencias' => function ($query) {
-                    $query->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
-                },
-                
-                // Solo nos importa el estado del trámite para pintar el "Pendiente"
-                'asistencias.justificacion:id,asistencia_id,estado',
-                
-                // Solo necesitamos la fecha para que Vue pueda ordenarlas
-                'asistencias.reunion:id,fecha',
-            ])
+            'grupo:id,nombre,color',
+            'sacramentos:id,nombre',
+            'apoderados:id,nombres,apellidos,celular',
+
+            // Reducimos drásticamente el peso de la tabla asistencias
+            'asistencias' => function ($query) {
+                $query->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
+            },
+
+            // Solo nos importa el estado del trámite para pintar el "Pendiente"
+            'asistencias.justificacion:id,asistencia_id,estado',
+
+            // Solo necesitamos la fecha para que Vue pueda ordenarlas
+            'asistencias.reunion:id,fecha',
+        ])
             ->withCount([
                 'asistencias as total_faltas_justificadas' => function ($query) {
                     $query->where('estado', 'falta justificada');
@@ -413,14 +413,15 @@ public function index()
         ])->findOrFail($id);
 
         $estadisticas = [
-            'asistencias' => $confirmando->asistencias->where('estado', 'asistió')->count(),
-            'tardanzas' => $confirmando->asistencias->where('estado', 'tardanza')->count(),
-            'justificadas' => $confirmando->asistencias->where('estado', 'falta justificada')->count(),
-            'injustificadas' => $confirmando->asistencias->filter(function ($asis) {
-                $tieneAcuerdoPendiente = $asis->justificacion && $asis->justificacion->estado === 'pendiente';
-
-                return $asis->estado === 'falta injustificada' && ! $tieneAcuerdoPendiente;
-            })->count(),
+            'asistencias' => $confirmando->asistencias()->where('estado', 'asistió')->count(),
+            'tardanzas' => $confirmando->asistencias()->where('estado', 'tardanza')->count(),
+            'justificadas' => $confirmando->asistencias()->where('estado', 'falta justificada')->count(),
+            'injustificadas' => $confirmando->asistencias()
+                ->where('estado', 'falta injustificada')
+                ->whereDoesntHave('justificacion', function ($q) {
+                    $q->where('estado', 'pendiente');
+                })
+                ->count(),
         ];
 
         $sacramentos = [];

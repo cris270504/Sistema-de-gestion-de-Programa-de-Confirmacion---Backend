@@ -4,8 +4,8 @@ use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\ConfirmandoController;
 use App\Http\Controllers\Api\GrupoController;
-use App\Http\Controllers\Api\JustificacionController;
 use App\Http\Controllers\Api\GrupoDistributionController;
+use App\Http\Controllers\Api\JustificacionController;
 use App\Http\Controllers\Api\PassportAuthController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RequisitoController;
@@ -63,7 +63,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/confirmandos/{id}', [ConfirmandoController::class, 'show'])->middleware('permission:ver confirmandos');
     Route::put('/confirmandos/{id}', [ConfirmandoController::class, 'update'])->middleware('permission:editar confirmandos');
     Route::delete('/confirmandos/{id}', [ConfirmandoController::class, 'destroy'])->middleware('permission:eliminar confirmandos');
-    
+
     // --- GRUPOS ---
     Route::get('/grupos', [GrupoController::class, 'index']);
     Route::post('/grupos', [GrupoController::class, 'store'])->middleware('permission:crear grupos');
@@ -115,5 +115,11 @@ Route::middleware('auth:api')->group(function () {
 
     // --- RECUPERAR CONTRASEÑA ---
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
+
+    Route::fallback(function () {
+        return response()->json([
+            'message' => 'El endpoint de la API no existe.',
+        ], 404);
+    });
 
 });

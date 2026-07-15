@@ -14,9 +14,10 @@ class Grupo extends Model
 
     public function catequistas()
     {
-        return $this->hasMany(User::class, 'grupo_id');
+        return $this->belongsToMany(User::class, 'catequista_grupo', 'grupo_id', 'user_id')
+            ->withTimestamps();
     }
-
+    
     public function confirmandos()
     {
         return $this->hasMany(Confirmando::class, 'grupo_id');

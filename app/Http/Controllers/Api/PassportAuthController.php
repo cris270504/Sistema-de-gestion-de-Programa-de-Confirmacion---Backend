@@ -24,8 +24,8 @@ class PassportAuthController extends Controller
             return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
 
-        // Obtenemos el usuario autenticado
-        $user = $request->user();
+        // Obtenemos el usuario autenticado y cargamos sus grupos
+        $user = $request->user()->load('grupos');
 
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
@@ -39,7 +39,7 @@ class PassportAuthController extends Controller
                 'email' => $user->email,
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
-                'grupo_id' => $user->grupo_id,
+                'grupo_ids' => $user->grupos->pluck('id'),
             ],
         ]);
     }

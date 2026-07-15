@@ -101,7 +101,7 @@ class GrupoController extends Controller
         return response()->json(null, 204);
     }
 
-    public function syncCatequists(Request $request, Grupo $grupo)
+public function syncCatequists(Request $request, Grupo $grupo)
     {
         $data = $request->validate([
             'users' => ['nullable', 'array'],
@@ -109,8 +109,7 @@ class GrupoController extends Controller
         ]);
 
         $newIds = $data['users'] ?? [];
-        $grupo->catequistas()->whereNotIn('id', $newIds)->update(['grupo_id' => null]);
-        User::whereIn('id', $newIds)->update(['grupo_id' => $grupo->id]);
+        $grupo->catequistas()->sync($newIds);
 
         return response()->json([
             'message' => 'Catequistas actualizados',
