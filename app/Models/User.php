@@ -31,11 +31,16 @@ class User extends Authenticatable
     ];
 
     protected $guard_name = 'api';
+    protected $appends = ['grupo_ids'];
 
     public function grupos()
     {
-        return $this->belongsToMany(Grupo::class, 'catequista_grupo', 'user_id', 'grupo_id')
-            ->withTimestamps();
+        return $this->belongsToMany(Grupo::class, 'catequista_grupo', 'user_id', 'grupo_id');
+    }
+
+    public function getGrupoIdsAttribute()
+    {
+        return $this->grupos()->pluck('grupos.id');
     }
 
     public function reunionesAsignadas()

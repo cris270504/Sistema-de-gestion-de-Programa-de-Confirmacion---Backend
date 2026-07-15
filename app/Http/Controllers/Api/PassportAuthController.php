@@ -49,7 +49,8 @@ class PassportAuthController extends Controller
      */
     public function me(Request $request)
     {
-        $user = $request->user();
+        // 1. Cargamos la relación de grupos para tener los datos listos
+        $user = $request->user()->load('grupos');
 
         return response()->json([
             'id' => $user->id,
@@ -58,6 +59,12 @@ class PassportAuthController extends Controller
             'dni' => $user->dni,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
+
+            // 2. Extraemos los IDs de la relación cargada
+            'grupo_ids' => $user->grupos->pluck('id'),
+
+            // 3. (Opcional) Si también quieres enviar los objetos de los grupos completos:
+            'grupos' => $user->grupos,
         ]);
     }
 
