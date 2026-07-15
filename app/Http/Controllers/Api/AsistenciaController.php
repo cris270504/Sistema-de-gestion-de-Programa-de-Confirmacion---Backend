@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apoderado;
 use App\Models\Asistencia;
 use App\Models\Confirmando;
 use App\Models\Reunion;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AsistenciaController extends Controller
@@ -50,7 +52,7 @@ class AsistenciaController extends Controller
     {
         $tipo = $request->query('tipo', 'Confirmandos');
         $fecha = $request->query('fecha');
-        $user = $request->user(); // <-- NUEVO: Obtenemos al usuario logueado
+        $user = $request->user();
 
         $queryReuniones = Reunion::where('tipo', $tipo)->orderBy('fecha', 'asc');
 
@@ -74,18 +76,35 @@ class AsistenciaController extends Controller
                 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
-                ->where('estado', '!=', 'retirado');
+                ->where('estado', '!=', 'retirado')
+                ->orderBy('apellidos')
+                ->get();
 
-            // <-- NUEVO FILTRO DE SEGURIDAD BACKEND -->
             if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
                 // Solo traemos a los jóvenes cuyo grupo_id coincida con los grupos del catequista
                 $queryConfirmandos->whereIn('grupo_id', $user->grupos->pluck('id'));
             }
 
             $personas = $queryConfirmandos->orderBy('apellidos')->get();
-
         } elseif ($tipo === 'Catequistas') {
-            // ... tu código de catequistas sigue igual ...
+            $personas = User::role(['catequista', 'coordinador'])
+                ->with(['grupos', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
+                    $q->whereIn('reunion_id', $reunionIds);
+                }])
+                ->orderBy('name')
+                ->get();
+
+        } elseif ($tipo === 'Apoderados') {
+            $personas = Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
+                $q->WhereIn('reunion_id', $reunionIds);
+            }])
+                ->orderBy('apellidos')
+                ->get();
         }
+
+        return response()->json([
+            'reuniones' => $reuniones,
+            'personas' => $personas,
+        ]);
     }
 }
