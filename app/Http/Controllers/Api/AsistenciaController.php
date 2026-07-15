@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Apoderado;
 use App\Models\Asistencia;
 use App\Models\Confirmando;
 use App\Models\Reunion;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class AsistenciaController extends Controller
@@ -48,7 +46,7 @@ class AsistenciaController extends Controller
         return response()->json(['message' => 'Asistencia guardada correctamente']);
     }
 
-public function matrix(Request $request)
+    public function matrix(Request $request)
     {
         $tipo = $request->query('tipo', 'Confirmandos');
         $fecha = $request->query('fecha');
@@ -79,13 +77,15 @@ public function matrix(Request $request)
                 ->where('estado', '!=', 'retirado');
 
             // <-- NUEVO FILTRO DE SEGURIDAD BACKEND -->
-            if (!$user->hasRole('coordinador') && !$user->can('ver todas las asistencias')) {
+            if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
                 // Solo traemos a los jóvenes cuyo grupo_id coincida con los grupos del catequista
                 $queryConfirmandos->whereIn('grupo_id', $user->grupos->pluck('id'));
             }
 
             $personas = $queryConfirmandos->orderBy('apellidos')->get();
-            
+
         } elseif ($tipo === 'Catequistas') {
             // ... tu código de catequistas sigue igual ...
+        }
+    }
 }
