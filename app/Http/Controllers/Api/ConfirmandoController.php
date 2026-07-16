@@ -26,6 +26,7 @@ class ConfirmandoController extends Controller
             'asistencias' => function ($q) {
                 $q->select('id', 'asistente_id', 'reunion_id', 'estado', 'created_at');
             },
+            'requisitos',
             'asistencias.justificacion:id,asistencia_id,estado',
             'asistencias.reunion:id,fecha',
         ])
@@ -158,8 +159,6 @@ class ConfirmandoController extends Controller
             $requisitos = $request->input('requisitos_actualizar');
 
             foreach ($requisitos as $req) {
-                // Actualizamos la tabla pivote 'requisito_confirmando'
-                // Solo actualizamos el estado y la fecha de entrega
                 $confirmando->requisitos()->updateExistingPivot($req['id'], [
                     'estado' => $req['estado'],
                     'fecha_entrega' => $req['estado'] === 'entregado' ? now() : null,

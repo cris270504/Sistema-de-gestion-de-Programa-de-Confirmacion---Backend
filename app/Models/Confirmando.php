@@ -32,7 +32,7 @@ class Confirmando extends Model
 
     public function requisitos()
     {
-        return $this->belongsToMany(Requisito::class, 'confirmando_requisito')->withPivot(['estado', 'fecha_entrega']);
+        return $this->belongsToMany(Requisito::class, 'confirmando_requisito')->withPivot(['estado', 'fecha_entrega'])->withTimestamps();
     }
 
     public function asistencias(): MorphMany
