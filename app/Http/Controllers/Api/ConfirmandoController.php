@@ -17,25 +17,62 @@ class ConfirmandoController extends Controller
     {
         $user = $request->user();
 
-        // 1. Iniciamos la consulta base
+        // 1. Iniciamos la consulta base con las relaciones justas
         $query = Confirmando::with([
             'grupo:id,nombre,color,procedencia',
             'sacramentos:id,nombre',
             'apoderados:id,nombres,apellidos,celular',
-        ]);
+        ])->select(
+            'id', 'nombres', 'apellidos', 'fecha_nacimiento',
+            'genero', 'celular', 'estado', 'grupo_id'
+        );
 
-        // 2. Filtro de seguridad
+        // 2. Filtro de seguridad (Multi-tenant)
         if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
             $query->whereIn('grupo_id', $user->grupos->pluck('id'));
         }
 
-        // 3. Aplicamos select y paginación de 25 en 25
-        return $query->select(
-            'id', 'nombres', 'apellidos', 'fecha_nacimiento',
-            'genero', 'celular', 'estado', 'grupo_id'
-        )
-            ->latest()
-            ->paginate(20);
+        // 3. APLICACIÓN DE FILTROS DINÁMICOS
+
+        // A) Búsqueda por texto (Nombres o Apellidos)
+        $query->when($request->filled('search'), function ($q) use ($request) {
+            $searchTerm = '%'.$request->search.'%';
+            $q->where(function ($subQ) use ($searchTerm) {
+                // Se usa orWhere agrupado para permitir que la BD use índices de texto si existen
+                $subQ->where('nombres', 'LIKE', $searchTerm)
+                    ->orWhere('apellidos', 'LIKE', $searchTerm);
+            });
+        });
+
+        // B) Filtro por Estado
+        $query->when($request->filled('estado') && $request->estado !== 'todos', function ($q) use ($request) {
+            $q->where('estado', $request->estado);
+        });
+
+        // C) Filtro por Grupo Específico
+        $query->when($request->filled('grupo') && $request->grupo !== 'todos', function ($q) use ($request) {
+            if ($request->grupo === 'sin_grupo') {
+                $q->whereNull('grupo_id');
+            } else {
+                $q->where('grupo_id', $request->grupo);
+            }
+        });
+
+        // D) Filtro por Procedencia (Sede / Caserío)
+        $query->when($request->filled('procedencia') && $request->procedencia !== 'todos', function ($q) use ($request) {
+            if ($request->procedencia === 'sin_grupo') {
+                $q->whereNull('grupo_id');
+            } else {
+                // Usamos whereHas porque la procedencia vive en la tabla grupos
+                $q->whereHas('grupo', function ($subQ) use ($request) {
+                    $subQ->where('procedencia', $request->procedencia);
+                });
+            }
+        });
+
+        // 4. Ordenamiento indexado (latest por 'id' es más rápido que por 'created_at')
+        // y paginación de 25 en 25
+        return $query->latest('id')->paginate(25);
     }
 
     public function show($id)
