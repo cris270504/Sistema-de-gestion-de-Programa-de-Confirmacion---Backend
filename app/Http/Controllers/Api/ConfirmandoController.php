@@ -9,7 +9,6 @@ use App\Models\Confirmando;
 use App\Models\Sacramento;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
@@ -459,22 +458,6 @@ class ConfirmandoController extends Controller
                         'justificacion_estado' => $asis->justificacion ? $asis->justificacion->estado : null,
                     ];
                 }),
-        ]);
-    }
-
-    public function getRetentionStats()
-    {
-        $stats = Confirmando::select('estado', DB::raw('count(*) as total'))
-            ->groupBy('estado')
-            ->get()
-            ->pluck('total', 'estado');
-
-        // Aseguramos que los índices existan para evitar errores en el front
-        return response()->json([
-            'en_preparacion' => $stats['en_preparacion'] ?? 0,
-            'retirado' => $stats['retirado'] ?? 0,
-            'confirmado' => $stats['confirmado'] ?? 0,
-            'total' => $stats->sum(),
         ]);
     }
 

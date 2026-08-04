@@ -49,8 +49,8 @@ class PassportAuthController extends Controller
      */
     public function me(Request $request)
     {
-        // 1. Cargamos la relación de grupos para tener los datos listos
-        $user = $request->user()->load('grupos');
+        // 1. Cargamos explícitamente SOLO el 'id' y 'nombre' de la tabla grupos
+        $user = $request->user()->load('grupos:id,nombre');
 
         return response()->json([
             'id' => $user->id,
@@ -60,11 +60,17 @@ class PassportAuthController extends Controller
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
 
-            // 2. Extraemos los IDs de la relación cargada
+            // 2. Mantenemos el arreglo de IDs por si tu frontend lo usa en otra vista
             'grupo_ids' => $user->grupos->pluck('id'),
 
-            // 3. (Opcional) Si también quieres enviar los objetos de los grupos completos:
-            'grupos' => $user->grupos,
+            // 3. Limpiamos la data. Si es una relación de muchos-a-muchos (belongsToMany),
+            // Laravel inyecta el objeto 'pivot'. Con el map() lo extirpamos para ahorrar bytes.
+            'grupos' => $user->grupos->map(function ($grupo) {
+                return [
+                    'id' => $grupo->id,
+                    'nombre' => $grupo->nombre,
+                ];
+            })->toArray(),
         ]);
     }
 

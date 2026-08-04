@@ -58,7 +58,6 @@ Route::middleware('auth:api')->group(function () {
 
     // --- CONFIRMANDOS ---
     Route::get('/confirmandos/{id}/perfil', [ConfirmandoController::class, 'obtenerPerfilCompleto'])->middleware('permission:ver confirmandos');
-    Route::get('/confirmandos/retention-stats', [ConfirmandoController::class, 'getRetentionStats']);
     Route::put('/confirmandos/{id}/retirar', [ConfirmandoController::class, 'retirar'])->middleware('permission:eliminar confirmandos');
     Route::get('/confirmandos', [ConfirmandoController::class, 'index'])->middleware('permission:ver confirmandos');
     Route::post('/confirmandos', [ConfirmandoController::class, 'store'])->middleware('permission:crear confirmandos');
