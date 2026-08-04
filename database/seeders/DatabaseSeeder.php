@@ -23,9 +23,9 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Creando datos fijos...');
 
         // 2. Crear Grupos
-        $grupo1 = Grupo::create(['nombre' => 'Grupo San Pablo', 'color' => '#ff5252','periodo' => '2025-2026']);
-        $grupo2 = Grupo::create(['nombre' => 'Grupo San Pedro', 'color' => '#fff652ff', 'periodo' => '2025-2026']);
-        $grupo3 = Grupo::create(['nombre' => 'Grupo María Auxiliadora', 'color' => '#7df85bff', 'periodo' => '2025-2026']);
+        $grupo1 = Grupo::create(['nombre' => 'Grupo San Pablo', 'color' => '#ff5252','periodo' => '2025-2026', 'procedencia' => 'sede']);
+        $grupo2 = Grupo::create(['nombre' => 'Grupo San Pedro', 'color' => '#fff652ff', 'periodo' => '2025-2026', 'procedencia' => 'sede']);
+        $grupo3 = Grupo::create(['nombre' => 'Grupo María Auxiliadora', 'color' => '#7df85bff', 'periodo' => '2025-2026', 'procedencia' => 'sede']);
         $listaGruposIds = [$grupo1->id, $grupo2->id, $grupo3->id];
 
         // 3. Crear Tipos de Apoderado

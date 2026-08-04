@@ -10,6 +10,7 @@ class Grupo extends Model
         'nombre',
         'periodo',
         'color',
+        'procedencia'
     ];
 
     public function catequistas()

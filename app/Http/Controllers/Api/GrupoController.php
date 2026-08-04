@@ -60,6 +60,7 @@ class GrupoController extends Controller
             'nombre' => ['required', 'string', 'max:255', 'unique:grupos,nombre'],
             'periodo' => ['required', 'string', 'max:255'],
             'color' => ['required', 'string', 'max:7'],
+            'procedencia' => ['required', 'string', 'max:7'],
         ]);
 
         $grupo = Grupo::create($data);
@@ -71,6 +72,7 @@ class GrupoController extends Controller
                 'nombre' => $grupo->nombre,
                 'periodo' => $grupo->periodo,
                 'color' => $grupo->color,
+                'procedencia' => $grupo->procedencia,
             ],
         ], 201);
     }
@@ -83,6 +85,7 @@ class GrupoController extends Controller
             'nombre' => ['sometimes', 'string', 'max:255', 'unique:grupos,nombre,'.$grupo->id],
             'periodo' => ['sometimes', 'string', 'max:255'],
             'color' => ['sometimes', 'required', 'string', 'max:7'],
+            'procedencia' => ['sometimes', 'string', 'max:7'],
         ]);
 
         $grupo->update($data);
@@ -95,6 +98,7 @@ class GrupoController extends Controller
                 'nombre' => $grupo->nombre,
                 'periodo' => $grupo->periodo,
                 'color' => $grupo->color,
+                'procedencia' => $grupo->procedencia,
             ],
         ], 201);
     }
