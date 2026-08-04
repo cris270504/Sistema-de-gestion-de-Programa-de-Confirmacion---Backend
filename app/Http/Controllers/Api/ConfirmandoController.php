@@ -17,11 +17,11 @@ class ConfirmandoController extends Controller
     {
         $user = $request->user();
 
-        // 1. Iniciamos la consulta base SOLO con las relaciones que usa listConfirmandos.vue
+        // 1. Iniciamos la consulta base
         $query = Confirmando::with([
-            'grupo:id,nombre,color',
-            'sacramentos:id,nombre', // Necesario para getSacramentoFaltante()
-            'apoderados:id,nombres,apellidos,celular', // Necesario para el modal de apoderados
+            'grupo:id,nombre,color,procedencia',
+            'sacramentos:id,nombre',
+            'apoderados:id,nombres,apellidos,celular',
         ]);
 
         // 2. Filtro de seguridad
@@ -29,13 +29,13 @@ class ConfirmandoController extends Controller
             $query->whereIn('grupo_id', $user->grupos->pluck('id'));
         }
 
-        // 3. Traemos solo las columnas estrictamente necesarias de la tabla confirmandos
+        // 3. Aplicamos select y paginación de 25 en 25
         return $query->select(
             'id', 'nombres', 'apellidos', 'fecha_nacimiento',
             'genero', 'celular', 'estado', 'grupo_id'
         )
             ->latest()
-            ->get();
+            ->paginate(25);
     }
 
     public function show($id)
