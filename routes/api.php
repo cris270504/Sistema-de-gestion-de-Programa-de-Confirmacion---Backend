@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\ConfirmandoController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\GrupoDistributionController;
 use App\Http\Controllers\Api\JustificacionController;
@@ -28,6 +29,7 @@ Route::post('/login', [PassportAuthController::class, 'login']);
 Route::middleware('auth:api')->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
+    Route::get('/dashboard/metricas', [DashboardController::class, 'metricasYAlertas']);
 
     // --- IMPORTAR CONFIRMANDOS EXCEL
     Route::get('/confirmandos/exportar', [ConfirmandoController::class, 'exportarExcel']);
