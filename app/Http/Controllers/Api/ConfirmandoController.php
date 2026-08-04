@@ -35,7 +35,7 @@ class ConfirmandoController extends Controller
             'genero', 'celular', 'estado', 'grupo_id'
         )
             ->latest()
-            ->paginate(25);
+            ->paginate(20);
     }
 
     public function show($id)
