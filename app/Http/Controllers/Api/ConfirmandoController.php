@@ -394,26 +394,30 @@ class ConfirmandoController extends Controller
 
     public function obtenerPerfilCompleto($id)
     {
+        // 1. Cargamos el confirmando con sus relaciones de forma limpia
         $confirmando = Confirmando::with([
             'grupo:id,nombre',
-            'apoderados',
-            // 1. Sintaxis correcta para traer reunión y justificación al mismo tiempo
+            'apoderados:id,nombres,apellidos,celular',
             'asistencias' => function ($query) {
-                $query->with(['reunion:id,nombre_tema,fecha', 'justificacion'])
-                    ->orderBy('created_at', 'desc');
+                $query->with([
+                    'reunion:id,nombre_tema,fecha',
+                    'justificacion:id,asistencia_id,estado',
+                ]);
             },
         ])->findOrFail($id);
 
+        // 2. OPTIMIZACIÓN: Calculamos todo en una sola pasada sobre la colección ya cargada en memoria,
+        // evitando golpear la base de datos 4 veces con .count()
+        $asistenciasCollection = $confirmando->asistencias;
+
         $estadisticas = [
-            'asistencias' => $confirmando->asistencias()->where('estado', 'asistió')->count(),
-            'tardanzas' => $confirmando->asistencias()->where('estado', 'tardanza')->count(),
-            'justificadas' => $confirmando->asistencias()->where('estado', 'falta justificada')->count(),
-            'injustificadas' => $confirmando->asistencias()
-                ->where('estado', 'falta injustificada')
-                ->whereDoesntHave('justificacion', function ($q) {
-                    $q->where('estado', 'pendiente');
-                })
-                ->count(),
+            'asistencias' => $asistenciasCollection->where('estado', 'asistió')->count(),
+            'tardanzas' => $asistenciasCollection->where('estado', 'tardanza')->count(),
+            'justificadas' => $asistenciasCollection->where('estado', 'falta justificada')->count(),
+            'injustificadas' => $asistenciasCollection->filter(function ($asis) {
+                return $asis->estado === 'falta injustificada' &&
+                       optional($asis->justificacion)->estado !== 'pendiente';
+            })->count(),
         ];
 
         $sacramentos = [];
@@ -435,17 +439,18 @@ class ConfirmandoController extends Controller
             ],
             'apoderado' => $confirmando->apoderados->first(),
             'estadisticas' => $estadisticas,
-            'historial_asistencias' => $confirmando->asistencias
+            // 3. Ordenamiento eficiente en memoria
+            'historial_asistencias' => $asistenciasCollection
                 ->sortByDesc(function ($asis) {
-                    return $asis->reunion ? $asis->reunion->fecha : $asis->created_at;
+                    return optional($asis->reunion)->fecha ?? $asis->created_at;
                 })
                 ->values()
                 ->map(function ($asis) {
                     return [
-                        'fecha' => $asis->reunion ? $asis->reunion->fecha : null,
-                        'tema' => $asis->reunion ? $asis->reunion->nombre_tema : 'Reunión sin tema',
+                        'fecha' => optional($asis->reunion)->fecha,
+                        'tema' => optional($asis->reunion)->nombre_tema ?? 'Reunión sin tema',
                         'estado' => $asis->estado,
-                        'justificacion_estado' => $asis->justificacion ? $asis->justificacion->estado : null,
+                        'justificacion_estado' => optional($asis->justificacion)->estado,
                     ];
                 }),
         ]);
