@@ -3,28 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GenerarGruposEquitativosRequest;
 use App\Models\Confirmando;
 use App\Models\Grupo;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class GrupoDistributionController extends Controller
 {
-    public function generarGruposEquitativos(Request $request)
+    public function generarGruposEquitativos(GenerarGruposEquitativosRequest $request)
     {
-        $request->validate([
-            'nombres_grupos' => 'required|array|min:1',
-            'nombres_grupos.*' => 'required|string|distinct',
-            'periodo' => 'required|string',
-        ]);
-
-        $nombres = $request->nombres_grupos;
+        $nombres = $request->validated()['nombres_grupos'];
+        $periodo = $request->validated()['periodo'];
         $cantidadGrupos = count($nombres);
+
+        // Rango de fecha de nacimiento equivalente a "edad completa entre 14 y 17 años",
+        // calculado en PHP para no depender de funciones SQL propietarias
+        // (TIMESTAMPDIFF/CURDATE son de MySQL y no existen en PostgreSQL).
+        $fechaNacimientoMax = now()->subYears(14)->toDateString();
+        $fechaNacimientoMin = now()->subYears(18)->addDay()->toDateString();
 
         // 1. Obtener confirmandos
         $hombres = Confirmando::whereNull('grupo_id')
-            ->where(function ($query) {
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+            ->where(function ($query) use ($fechaNacimientoMin, $fechaNacimientoMax) {
+                $query->whereBetween('fecha_nacimiento', [$fechaNacimientoMin, $fechaNacimientoMax])
                     ->orWhereNull('fecha_nacimiento');
             })
             ->where('estado', 'en_preparacion')
@@ -33,8 +34,8 @@ class GrupoDistributionController extends Controller
             ->get();
 
         $mujeres = Confirmando::whereNull('grupo_id')
-            ->where(function ($query) {
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 14 AND 17')
+            ->where(function ($query) use ($fechaNacimientoMin, $fechaNacimientoMax) {
+                $query->whereBetween('fecha_nacimiento', [$fechaNacimientoMin, $fechaNacimientoMax])
                     ->orWhereNull('fecha_nacimiento');
             })
             ->where('estado', 'en_preparacion')
@@ -60,7 +61,7 @@ class GrupoDistributionController extends Controller
                 $grupo = Grupo::firstOrCreate(
                     [
                         'nombre' => $nombreLimpio,
-                        'periodo' => $request->periodo,
+                        'periodo' => $periodo,
                     ],
                     [
                         'color' => '#'.str_pad(dechex(rand(0x000000, 0xFFFFFF)), 6, '0', STR_PAD_LEFT),

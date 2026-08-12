@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exports\ConfirmandosPorGruposExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImportarConfirmandosRequest;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Sacramento;
@@ -283,14 +284,8 @@ public function index(Request $request)
             ->get();
     }
 
-    public function importar(Request $request)
+    public function importar(ImportarConfirmandosRequest $request)
     {
-        // Cambié "mimes" por "file" porque a veces Excel y Laravel tienen problemas
-        // reconociendo el mime type exacto desde distintos sistemas operativos.
-        $request->validate([
-            'archivo' => 'required|file|max:5000',
-        ]);
-
         try {
             $data = Excel::toArray(new \stdClass, $request->file('archivo'))[0];
 
@@ -303,8 +298,10 @@ public function index(Request $request)
                     continue;
                 }
 
-                $nombreCompleto = trim($row[0] ?? '');
-                $celular = trim($row[1] ?? '');
+                // Sanitizamos el input crudo del Excel: quitamos etiquetas/tags antes
+                // de que el dato toque el ORM o se persista en la base de datos.
+                $nombreCompleto = trim(strip_tags((string) ($row[0] ?? '')));
+                $celular = trim(strip_tags((string) ($row[1] ?? '')));
                 $numeroFila = $index + 1;
 
                 if (empty($nombreCompleto)) {
@@ -332,6 +329,11 @@ public function index(Request $request)
                     $nombres = $partes[0] ?? '';
                     $apellidos = '';
                 }
+
+                // Truncamos a 255 (límite de la columna) para evitar que Postgres
+                // rechace el insert por "value too long for character varying"
+                $nombres = mb_substr($nombres, 0, 255);
+                $apellidos = mb_substr($apellidos, 0, 255);
 
                 // 3. Validar Celular (NUEVA LÓGICA)
                 if (! empty($celular)) {

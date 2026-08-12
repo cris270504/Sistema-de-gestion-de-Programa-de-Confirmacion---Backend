@@ -33,7 +33,7 @@ Route::middleware('auth:api')->group(function () {
 
     // --- IMPORTAR CONFIRMANDOS EXCEL
     Route::get('/confirmandos/exportar', [ConfirmandoController::class, 'exportarExcel']);
-    Route::post('/confirmandos/importar', [ConfirmandoController::class, 'importar']);
+    Route::post('/confirmandos/importar', [ConfirmandoController::class, 'importar'])->middleware('permission:crear confirmandos');
 
     // --- USERS ---
     Route::get('/users', [UserController::class, 'index'])->middleware('permission:ver usuarios');
@@ -74,7 +74,7 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/grupos/{id}', [GrupoController::class, 'update'])->middleware('permission:editar grupos');
     Route::delete('/grupos/{id}', [GrupoController::class, 'destroy'])->middleware('permission:eliminar grupos');
     Route::get('/grupos/{id}/apoderados', [GrupoController::class, 'getApoderados']);
-    Route::post('/grupos/generar-equitativo', [GrupoDistributionController::class, 'generarGruposEquitativos']);
+    Route::post('/grupos/generar-equitativo', [GrupoDistributionController::class, 'generarGruposEquitativos'])->middleware('permission:crear grupos');
 
     // --- REUNIONES ---
     Route::get('/reuniones/upcoming', [ReunionController::class, 'upcoming']);
