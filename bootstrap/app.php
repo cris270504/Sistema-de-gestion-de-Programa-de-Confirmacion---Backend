@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             '*', // Opcional: Desactiva CSRF temporalmente si tienes problemas con eso
         ]);
+        $middleware->appendToGroup('api', \App\Http\Middleware\SetPostgresRlsContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
