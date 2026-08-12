@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Requisito;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class RequisitoController extends Controller
 {
+    public const CACHE_KEY = 'catalogo.requisitos';
+
     public function index()
     {
-        return Requisito::orderBy('nombre', 'asc')->get();
+        return Cache::remember(self::CACHE_KEY, now()->addDay(), function () {
+            return Requisito::orderBy('nombre', 'asc')->get();
+        });
     }
 
     public function store(Request $request)
@@ -20,6 +25,8 @@ class RequisitoController extends Controller
         ]);
 
         $requisito = Requisito::create($data);
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json([
             'message' => 'Requisito creado correctamente',
@@ -37,6 +44,8 @@ class RequisitoController extends Controller
 
         $requisito->update($data);
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json([
             'message' => 'Requisito actualizado',
             'requisito' => $requisito
@@ -47,6 +56,8 @@ class RequisitoController extends Controller
     {
         $requisito = Requisito::findOrFail($id);
         $requisito->delete();
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json(null, 204);
     }

@@ -10,6 +10,7 @@ use App\Models\Confirmando;
 use App\Models\Sacramento;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
@@ -169,10 +170,15 @@ public function index(Request $request)
 
     private function asignarRutaSacramental(Confirmando $confirmando, $faltanteId)
     {
-        // Busca modelos (Asegúrate de que los nombres coincidan con tu BD)
-        $bautismo = Sacramento::with('requisitos')->where('nombre', 'Bautismo')->first();
-        $comunion = Sacramento::with('requisitos')->where('nombre', 'Primera Comunión')->first();
-        $confirmacion = Sacramento::with('requisitos')->where('nombre', 'Confirmación')->first();
+        // Catálogo de sacramentos cacheado (comparte cache con SacramentoController::index)
+        // para evitar 3 queries repetidas en cada alta/edición de confirmando.
+        $sacramentos = Cache::remember(SacramentoController::CACHE_KEY, now()->addDay(), function () {
+            return Sacramento::with('requisitos')->latest()->get();
+        });
+
+        $bautismo = $sacramentos->firstWhere('nombre', 'Bautismo');
+        $comunion = $sacramentos->firstWhere('nombre', 'Primera Comunión');
+        $confirmacion = $sacramentos->firstWhere('nombre', 'Confirmación');
 
         if (! $bautismo || ! $comunion || ! $confirmacion) {
             return;
@@ -271,18 +277,20 @@ public function index(Request $request)
         $confirmando->apoderados()->sync($idsParaSincronizar);
     }
 
-    public function buscarApoderados(Request $request)
-    {
-        $query = $request->get('q');
-        if (strlen($query) < 3) {
-            return response()->json([]);
-        }
-
-        return Apoderado::where('apellidos', 'LIKE', "%{$query}%")
-            ->orWhere('nombres', 'LIKE', "%{$query}%")
-            ->limit(5)
-            ->get();
-    }
+    // @TODO: Verificar si el frontend requiere este endpoint (no tiene ruta registrada
+    // en routes/api.php actualmente). Se deja comentado para no perder la lógica.
+    // public function buscarApoderados(Request $request)
+    // {
+    //     $query = $request->get('q');
+    //     if (strlen($query) < 3) {
+    //         return response()->json([]);
+    //     }
+    //
+    //     return Apoderado::where('apellidos', 'LIKE', "%{$query}%")
+    //         ->orWhere('nombres', 'LIKE', "%{$query}%")
+    //         ->limit(5)
+    //         ->get();
+    // }
 
     public function importar(ImportarConfirmandosRequest $request)
     {
@@ -408,7 +416,7 @@ public function index(Request $request)
         $asistenciasCollection = $confirmando->asistencias;
 
         $estadisticas = [
-            'asistencias' => $asistenciasCollection->where('estado', 'asistió')->count(),
+            'asistencias' => $asistenciasCollection->where('estado', 'asistio')->count(),
             'tardanzas' => $asistenciasCollection->where('estado', 'tardanza')->count(),
             'justificadas' => $asistenciasCollection->where('estado', 'falta justificada')->count(),
             'injustificadas' => $asistenciasCollection->filter(function ($asis) {

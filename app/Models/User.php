@@ -40,7 +40,7 @@ class User extends Authenticatable
 
     public function getGrupoIdsAttribute()
     {
-        return $this->grupos()->pluck('grupos.id');
+        return $this->grupos->pluck('id');
     }
 
     public function reunionesAsignadas()

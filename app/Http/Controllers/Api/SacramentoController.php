@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Sacramento;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class SacramentoController extends Controller
 {
+    public const CACHE_KEY = 'catalogo.sacramentos';
+
     public function index()
     {
-        return Sacramento::with('requisitos')->latest()->get();
+        return Cache::remember(self::CACHE_KEY, now()->addDay(), function () {
+            return Sacramento::with('requisitos')->latest()->get();
+        });
     }
 
     public function show($id)
@@ -27,6 +32,8 @@ class SacramentoController extends Controller
         $sacramento = Sacramento::create([
             'nombre' => $validatedData['nombre'],
         ]);
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json([
             'message' => 'Sacramento creado con éxito',
@@ -45,6 +52,8 @@ class SacramentoController extends Controller
             $sacramento->requisitos()->sync($request->requisitos);
         }
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json([
             'message' => 'Sacramento actualizado con éxito', // <-- Corregido
             'sacramento' => $sacramento,
@@ -55,6 +64,8 @@ class SacramentoController extends Controller
     {
         $sacramento = Sacramento::findOrFail($id);
         $sacramento->delete();
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json(null, 204);
     }

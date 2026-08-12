@@ -15,11 +15,14 @@ class GrupoController extends Controller
         $user = $request->user();
 
         // 1. Preparamos la consulta base
+        // NOTA: se limitan las columnas de 'asistencias' (en vez de traer el modelo
+        // completo con 'nota', timestamps, etc.) para evitar fugas de memoria cuando
+        // un grupo acumula muchas reuniones/confirmandos con historial largo.
         $query = Grupo::with([
             'catequistas',
-            'confirmandos.asistencias',
             'confirmandos' => function ($q) {
-                $q->where('estado', '!=', 'retirado');
+                $q->where('estado', '!=', 'retirado')
+                    ->with(['asistencias:id,asistente_id,asistente_type,reunion_id,estado']);
             },
         ]);
 

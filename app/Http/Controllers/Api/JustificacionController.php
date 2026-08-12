@@ -110,7 +110,6 @@ class JustificacionController extends Controller
                     'descripcion' => $request->descripcion,
                     'fecha_acuerdo' => $request->fecha_acuerdo,
                     'estado' => 'pendiente',
-                    'fecha_acuerdo' => $request->fecha_acuerdo,
                 ]
             );
 

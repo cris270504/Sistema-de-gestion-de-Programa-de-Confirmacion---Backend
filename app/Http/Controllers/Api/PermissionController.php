@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
+    public const CACHE_KEY = 'catalogo.permissions';
+
     public function index()
     {
-        return Permission::all();
+        return Cache::remember(self::CACHE_KEY, now()->addDay(), function () {
+            return Permission::all();
+        });
     }
 
     public function show($id)
@@ -29,6 +34,8 @@ class PermissionController extends Controller
             'guard_name' => 'api',
         ]);
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json($permission, 201);
     }
 
@@ -42,6 +49,8 @@ class PermissionController extends Controller
 
         $permission->update($data);
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json($permission);
     }
 
@@ -49,6 +58,8 @@ class PermissionController extends Controller
     {
         $permission = Permission::findOrFail($id);
         $permission->delete();
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json(['message' => 'Permiso eliminado correctamente']);
     }

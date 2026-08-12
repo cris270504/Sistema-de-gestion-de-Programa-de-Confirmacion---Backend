@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
+    public const CACHE_KEY = 'catalogo.roles';
+
     public function index()
     {
-        return Role::with('permissions')->get();
+        return Cache::remember(self::CACHE_KEY, now()->addDay(), function () {
+            return Role::with('permissions')->get();
+        });
     }
 
     public function show($id)
@@ -36,6 +41,8 @@ class RoleController extends Controller
             $role->syncPermissions($data['permissions']);
         }
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json($role, 201);
     }
 
@@ -58,6 +65,8 @@ class RoleController extends Controller
             $role->syncPermissions($data['permissions']);
         }
 
+        Cache::forget(self::CACHE_KEY);
+
         return response()->json($role);
     }
 
@@ -70,6 +79,8 @@ class RoleController extends Controller
         }
 
         $role->delete();
+
+        Cache::forget(self::CACHE_KEY);
 
         return response()->json(null, 204);
     }

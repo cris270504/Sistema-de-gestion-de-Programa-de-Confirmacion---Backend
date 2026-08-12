@@ -22,8 +22,16 @@ Route::get('/', function (Request $request) {
     return 'api';
 });
 
-// Login público
-Route::post('/login', [PassportAuthController::class, 'login']);
+// Health check público (keep-alive Render) — sin tocar base de datos
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok'], 200);
+});
+
+// Login público (rate limiting estricto para mitigar fuerza bruta)
+Route::post('/login', [PassportAuthController::class, 'login'])->middleware('throttle:5,1');
+
+// Recuperar contraseña (público: un usuario sin sesión debe poder solicitarlo)
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 
 // Rutas protegidas
 Route::middleware('auth:api')->group(function () {
@@ -114,13 +122,12 @@ Route::middleware('auth:api')->group(function () {
     // --- TIPOS APODERADO ---
     Route::get('/tipos-apoderado', [TipoApoderadoController::class, 'index']);
 
-    // --- RECUPERAR CONTRASEÑA ---
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
+});
 
-    Route::fallback(function () {
-        return response()->json([
-            'message' => 'El endpoint de la API no existe.',
-        ], 404);
-    });
-
+// 404 personalizado global (fuera del grupo auth:api para que aplique también a
+// peticiones no autenticadas a endpoints inexistentes)
+Route::fallback(function () {
+    return response()->json([
+        'message' => 'El endpoint de la API no existe.',
+    ], 404);
 });
