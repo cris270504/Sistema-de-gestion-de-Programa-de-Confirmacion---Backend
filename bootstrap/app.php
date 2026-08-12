@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '*', // Opcional: Desactiva CSRF temporalmente si tienes problemas con eso
         ]);
         $middleware->appendToGroup('api', \App\Http\Middleware\SetPostgresRlsContext::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
