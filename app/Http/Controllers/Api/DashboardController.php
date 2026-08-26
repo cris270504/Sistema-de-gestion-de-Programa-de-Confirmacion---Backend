@@ -70,7 +70,10 @@ class DashboardController extends Controller
                     if ($rachaActiva > $maxHistorico) {
                         $maxHistorico = $rachaActiva;
                     }
-                } else {
+                } elseif ($asistencia->estado === 'asistio' || $asistencia->estado === 'tardanza') {
+                    // Solo asistir o llegar tarde corta la racha de injustificadas.
+                    // 'falta justificada' (o una injustificada con acuerdo pendiente) NO la corta:
+                    // el patrón de inasistencia sigue activo, solo se está gestionando esa falta puntual.
                     $rachaActiva = 0;
                 }
 
@@ -118,7 +121,7 @@ class DashboardController extends Controller
                     'total_faltas_injustificadas' => $faltasInjustificadas,
                     'total_faltas_justificadas' => $faltasJustificadas,
                     'total_tardanzas' => $tardanzas,
-                    'injustificadas_seguidas' => $rachaActiva,
+                    'injustificadas_seguidas' => $maxHistorico,
                     'nivel_riesgo' => $nivelRiesgo,
                     'motivo_alerta' => $motivoAlerta,
                     'nombre_apoderado' => $apoderado ? "{$apoderado->apellidos}, {$apoderado->nombres}" : 'No asignado',
