@@ -82,6 +82,12 @@ class DashboardController extends Controller
                 }
             }
 
+            // Tardanza en racha: solo alerta si llegó tarde en sus 2 últimas reuniones
+            // (ya no es un conteo acumulado de todo el historial)
+            $ultimasDosAsistencias = $asistenciasOrdenadas->values()->slice(-2);
+            $tardanzaEnUltimasDos = $ultimasDosAsistencias->count() === 2
+                && $ultimasDosAsistencias->every(fn ($a) => $a->estado === 'tardanza');
+
             $nivelRiesgo = 'NINGUNO';
             $motivoAlerta = '';
 
@@ -97,9 +103,9 @@ class DashboardController extends Controller
             } elseif ($faltasJustificadas >= 4) {
                 $nivelRiesgo = 'MEDIO';
                 $motivoAlerta = "Alerta de Desconexión: Tiene {$faltasJustificadas} faltas justificadas.";
-            } elseif ($tardanzas >= 4) {
+            } elseif ($tardanzaEnUltimasDos) {
                 $nivelRiesgo = 'BAJO';
-                $motivoAlerta = "Alerta de Impuntualidad: Acumula {$tardanzas} tardanzas.";
+                $motivoAlerta = 'Alerta de Impuntualidad: Llegó tarde en sus últimas 2 reuniones.';
             }
 
             if ($nivelRiesgo !== 'NINGUNO') {
