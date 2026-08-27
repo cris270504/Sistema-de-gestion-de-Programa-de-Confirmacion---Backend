@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static void markPrivileged(bool $privileged = true)
  * @method static bool isPrivileged()
  * @method static bool shouldScope()
+ * @method static array config(?int $parroquiaId = null)
+ * @method static void forgetConfig(?int $parroquiaId = null)
  * @method static mixed runPrivileged(callable $callback)
  * @method static mixed runFor(?int $parroquiaId, callable $callback)
  *

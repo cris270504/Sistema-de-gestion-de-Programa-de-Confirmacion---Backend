@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -34,6 +35,10 @@ class PassportAuthController extends Controller
         // Obtenemos el usuario autenticado y cargamos sus grupos + su parroquia
         $user = $request->user()->load(['grupos', 'parroquia']);
 
+        // El login es ruta pública: ResolveTenant corrió sin usuario, así que fijamos
+        // el contexto acá para poder devolver la configuración de la parroquia.
+        Tenant::set($user->parroquia_id);
+
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
 
@@ -53,6 +58,7 @@ class PassportAuthController extends Controller
                     'nombre' => $user->parroquia->nombre,
                 ] : null,
             ],
+            'configuracion' => Tenant::config(),
         ]);
     }
 
@@ -76,6 +82,7 @@ class PassportAuthController extends Controller
                 'slug' => $user->parroquia->slug,
                 'nombre' => $user->parroquia->nombre,
             ] : null,
+            'configuracion' => Tenant::config(),
 
             // 2. Mantenemos el arreglo de IDs por si tu frontend lo usa en otra vista
             'grupo_ids' => $user->grupos->pluck('id'),

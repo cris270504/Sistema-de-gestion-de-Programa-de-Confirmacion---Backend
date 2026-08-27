@@ -56,6 +56,9 @@ class RolePermissionUserSeeder extends Seeder
 
             // Mantenimiento
             'ver mantenimiento', 'crear respaldo', 'restaurar respaldo',
+
+            // Parroquia (SaaS)
+            'administrar parroquia',
         ];
 
         foreach ($permissions as $name) {

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\FrontendErrorLogController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\GrupoDistributionController;
 use App\Http\Controllers\Api\JustificacionController;
+use App\Http\Controllers\Api\ParroquiaConfiguracionController;
 use App\Http\Controllers\Api\PassportAuthController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RequisitoController;
@@ -42,6 +43,10 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
     Route::get('/dashboard/metricas', [DashboardController::class, 'metricasYAlertas']);
+
+    // --- CONFIGURACIÓN DE LA PARROQUIA ---
+    Route::get('/parroquia/configuracion', [ParroquiaConfiguracionController::class, 'show']);
+    Route::put('/parroquia/configuracion', [ParroquiaConfiguracionController::class, 'update'])->middleware('permission:administrar parroquia');
 
     // Log de errores JS del frontend (cualquier usuario autenticado puede reportar los suyos)
     Route::post('/logs/frontend-error', [FrontendErrorLogController::class, 'store']);

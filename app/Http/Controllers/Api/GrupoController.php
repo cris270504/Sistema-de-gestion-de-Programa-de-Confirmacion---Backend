@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Grupo;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class GrupoController extends Controller
 {
@@ -63,7 +65,7 @@ class GrupoController extends Controller
             'nombre' => ['required', 'string', 'max:255', 'unique:grupos,nombre'],
             'periodo' => ['required', 'string', 'max:255'],
             'color' => ['required', 'string', 'max:7'],
-            'procedencia' => ['required', 'string', 'max:7'],
+            'procedencia' => ['required', 'string', Rule::in(Tenant::config()['procedencias'])],
         ]);
 
         $grupo = Grupo::create($data);
@@ -88,7 +90,7 @@ class GrupoController extends Controller
             'nombre' => ['sometimes', 'string', 'max:255', 'unique:grupos,nombre,'.$grupo->id],
             'periodo' => ['sometimes', 'string', 'max:255'],
             'color' => ['sometimes', 'required', 'string', 'max:7'],
-            'procedencia' => ['sometimes', 'string', 'max:7'],
+            'procedencia' => ['sometimes', 'string', Rule::in(Tenant::config()['procedencias'])],
         ]);
 
         $grupo->update($data);

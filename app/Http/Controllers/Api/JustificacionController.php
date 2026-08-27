@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Asistencia;
 use App\Models\Confirmando;
 use App\Models\Justificacion;
+use App\Tenancy\Facades\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,8 +48,8 @@ class JustificacionController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Calculamos la fecha límite dinámica (hace 21 días atrás a las 00:00:00)
-        $hace21Dias = Carbon::now()->subDays(21)->startOfDay();
+        // 1. Fecha límite: hace N días (ventana configurable por parroquia).
+        $fechaLimite = Carbon::now()->subDays(Tenant::config()['dias_ventana_justificacion'])->startOfDay();
         $hoy = Carbon::now()->endOfDay(); // Para evitar traer reuniones de fechas futuras erróneas
 
         // Traemos todas las asistencias del tipo Confirmando que sean faltas
@@ -73,16 +74,16 @@ class JustificacionController extends Controller
                 $query->where('estado', '!=', 'retirado');
             })
             // ➔ 3. FILTRO CORREGIDO: El límite de tiempo solo aplica a las injustificadas puras
-            ->where(function ($query) use ($hace21Dias, $hoy) {
+            ->where(function ($query) use ($fechaLimite, $hoy) {
                 // Caso A: Si la falta tiene un trámite (pendiente o justificado), pasa libre sin importar la fecha
                 $query->whereHas('justificacion', function ($q) {
                     $q->whereIn('estado', ['pendiente', 'justificado']);
                 })
                 // Caso B: Si es injustificada pura, obligatoriamente debe estar dentro de los 21 días
-                    ->orWhere(function ($q) use ($hace21Dias, $hoy) {
+                    ->orWhere(function ($q) use ($fechaLimite, $hoy) {
                         $q->where('estado', 'falta injustificada')
-                            ->whereHas('reunion', function ($subQ) use ($hace21Dias, $hoy) {
-                                $subQ->where('fecha', '>=', $hace21Dias)
+                            ->whereHas('reunion', function ($subQ) use ($fechaLimite, $hoy) {
+                                $subQ->where('fecha', '>=', $fechaLimite)
                                     ->where('fecha', '<=', $hoy);
                             });
                     });

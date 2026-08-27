@@ -2,6 +2,9 @@
 
 namespace App\Tenancy;
 
+use App\Models\ParroquiaConfiguracion;
+use Illuminate\Support\Facades\Cache;
+
 /**
  * Contexto de parroquia (tenant) del request/proceso actual. Se registra como
  * singleton, así que su estado vive lo que dura el request (o el comando artisan).
@@ -46,6 +49,32 @@ class TenantContext
     public function shouldScope(): bool
     {
         return $this->parroquiaId !== null && ! $this->privileged;
+    }
+
+    /**
+     * Configuración efectiva de la parroquia actual (defaults + fila guardada),
+     * cacheada. Sin contexto de parroquia devuelve solo los defaults.
+     */
+    public function config(?int $parroquiaId = null): array
+    {
+        $id = $parroquiaId ?? $this->parroquiaId();
+
+        if ($id === null) {
+            return TenantConfig::DEFAULTS;
+        }
+
+        return Cache::remember("parroquia.config.$id", now()->addHours(6), function () use ($id) {
+            $fila = ParroquiaConfiguracion::withoutGlobalScopes()
+                ->where('parroquia_id', $id)
+                ->first();
+
+            return TenantConfig::merge($fila?->toConfigArray());
+        });
+    }
+
+    public function forgetConfig(?int $parroquiaId = null): void
+    {
+        Cache::forget('parroquia.config.'.($parroquiaId ?? $this->parroquiaId()));
     }
 
     /**

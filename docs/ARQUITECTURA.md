@@ -189,6 +189,27 @@ Hecho (2026-08-30, Parte 2 — RLS por parroquia):
   la Fase E.
 - `TenantRlsPgsqlTest` (se salta salvo que la suite apunte a pgsql).
 
+Hecho (2026-08-31, Parte 3 — configuración por parroquia):
+
+- Tabla `parroquia_configuraciones` (1:1). Modelo `ParroquiaConfiguracion` +
+  `App\Tenancy\TenantConfig::DEFAULTS` + `Tenant::config()` (cacheado 6h,
+  `Tenant::forgetConfig()` al guardar).
+- Endpoints `GET /api/parroquia/configuracion` (autenticado) y
+  `PUT` (permiso `administrar parroquia`, nuevo, dado a super-admin).
+- Se dejaron de usar los literales: umbrales de alerta (`DashboardController`),
+  ventana de justificación (`JustificacionController`), tipos de reunión
+  (`ReunionController`), procedencias de grupo (`GrupoController`). Todos leen
+  `Tenant::config()`.
+- Login y `/get-user` devuelven `configuracion`.
+- `programa_fin` es opcional (cierre incierto); `programa_inicio` obligatorio solo
+  si se define un fin.
+- Frontend: `stores/parroquia.js` (hidratado desde el login, persistido en
+  localStorage), branding aplicado en Sidebar (logo + nombre) y como
+  `--parroquia-color` (CSS var, override de `.btn-primary`), `document.title`.
+  Vista `/configuracion` (permiso `administrar parroquia`). Cronograma y
+  `grupoModal` leen tipos de reunión / procedencias de la config.
+- Tests: `ParroquiaConfiguracionTest` (8), front `stores/parroquia.test.js` (5).
+
 Pendiente:
 
 - Sin paginación real en `users`, `grupos`, `reuniones` (volumen bajo por ahora).

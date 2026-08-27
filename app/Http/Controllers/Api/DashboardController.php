@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Confirmando;
 use App\Models\Grupo;
 use App\Models\User;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -14,6 +15,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $esGestor = $user->can('ver usuarios'); // Definimos si es admin/coordinador
+        $umbrales = Tenant::config()['umbrales_alerta'];
 
         // 1. MÉTRICAS BÁSICAS (Consultas ultra rápidas)
         $totalConfirmandos = Confirmando::count();
@@ -85,30 +87,31 @@ class DashboardController extends Controller
                 }
             }
 
-            // Tardanza en racha: solo alerta si llegó tarde en sus 2 últimas reuniones
-            // (ya no es un conteo acumulado de todo el historial)
-            $ultimasDosAsistencias = $asistenciasOrdenadas->values()->slice(-2);
-            $tardanzaEnUltimasDos = $ultimasDosAsistencias->count() === 2
-                && $ultimasDosAsistencias->every(fn ($a) => $a->estado === 'tardanza');
+            // Tardanza en racha: solo alerta si llegó tarde en sus N últimas reuniones
+            // (N configurable por parroquia, ya no un conteo acumulado del historial).
+            $nTardanzas = $umbrales['bajo_tardanzas_seguidas'];
+            $ultimasNAsistencias = $asistenciasOrdenadas->values()->slice(-$nTardanzas);
+            $tardanzaEnUltimasN = $ultimasNAsistencias->count() === $nTardanzas
+                && $ultimasNAsistencias->every(fn ($a) => $a->estado === 'tardanza');
 
             $nivelRiesgo = 'NINGUNO';
             $motivoAlerta = '';
 
-            if ($faltasInjustificadas >= 4) {
+            if ($faltasInjustificadas >= $umbrales['alto_injustificadas']) {
                 $nivelRiesgo = 'ALTO';
                 $motivoAlerta = "Alerta Crítica: {$faltasInjustificadas} faltas injustificadas ACUMULADAS.";
-            } elseif ($rachaActiva >= 2) {
+            } elseif ($rachaActiva >= $umbrales['alto_racha']) {
                 $nivelRiesgo = 'ALTO';
                 $motivoAlerta = "Alerta Crítica: {$rachaActiva} faltas injustificadas en sus ÚLTIMAS reuniones.";
-            } elseif ($maxHistorico >= 3) {
+            } elseif ($maxHistorico >= $umbrales['alto_seguidas_historicas']) {
                 $nivelRiesgo = 'ALTO';
                 $motivoAlerta = "Alerta Crítica: Tuvo {$maxHistorico} faltas seguidas en el pasado.";
-            } elseif ($faltasJustificadas >= 4) {
+            } elseif ($faltasJustificadas >= $umbrales['medio_justificadas']) {
                 $nivelRiesgo = 'MEDIO';
                 $motivoAlerta = "Alerta de Desconexión: Tiene {$faltasJustificadas} faltas justificadas.";
-            } elseif ($tardanzaEnUltimasDos) {
+            } elseif ($tardanzaEnUltimasN) {
                 $nivelRiesgo = 'BAJO';
-                $motivoAlerta = 'Alerta de Impuntualidad: Llegó tarde en sus últimas 2 reuniones.';
+                $motivoAlerta = "Alerta de Impuntualidad: Llegó tarde en sus últimas {$nTardanzas} reuniones.";
             }
 
             if ($nivelRiesgo !== 'NINGUNO') {
