@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Justificacion;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -206,13 +208,24 @@ class UserController extends Controller
             ], 422);
         }
 
-        if ($user->asistencias()->exists()) {
-            return response()->json([
-                'message' => 'Este usuario tiene asistencias registradas. Desactívalo en lugar de eliminarlo para conservar el historial.',
-            ], 422);
-        }
+        // Borrado definitivo: el usuario ya no tiene grupos. Limpiamos en una
+        // transacción todo lo que lo referencia (su historial de asistencia como
+        // catequista y las justificaciones asociadas, reuniones asignadas, roles y
+        // tokens) para no dejar registros huérfanos. Para conservar el historial
+        // está la opción "Desactivar".
+        DB::transaction(function () use ($user) {
+            $asistenciaIds = $user->asistencias()->pluck('id');
 
-        $user->delete();
+            if ($asistenciaIds->isNotEmpty()) {
+                Justificacion::whereIn('asistencia_id', $asistenciaIds)->delete();
+                $user->asistencias()->delete();
+            }
+
+            $user->reunionesAsignadas()->detach();
+            $user->syncRoles([]);
+            $user->tokens()->delete();
+            $user->delete();
+        });
 
         // Código 204: No Content es más apropiado para delete exitoso sin cuerpo
         return response()->json(null, 204);

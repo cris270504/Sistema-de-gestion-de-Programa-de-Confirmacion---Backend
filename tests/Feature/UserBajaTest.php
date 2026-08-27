@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Asistencia;
+use App\Models\Reunion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -73,7 +75,7 @@ it('bloquea el borrado de un usuario con grupos asignados', function () {
     expect(User::find($catequista->id))->not->toBeNull();
 });
 
-it('permite borrar un usuario sin grupos ni asistencias', function () {
+it('permite borrar un usuario sin grupos', function () {
     $limpio = User::factory()->create();
     Passport::actingAs($this->admin);
 
@@ -81,4 +83,27 @@ it('permite borrar un usuario sin grupos ni asistencias', function () {
         ->assertNoContent();
 
     expect(User::find($limpio->id))->toBeNull();
+});
+
+it('borra un usuario sin grupos aunque tenga historial de asistencia (y lo limpia)', function () {
+    $catequista = User::factory()->create();
+    $reunion = Reunion::create([
+        'nombre_tema' => 'Reunión de prueba',
+        'fecha' => now()->toDateString(),
+        'tipo' => 'Catequistas',
+    ]);
+    $asistencia = Asistencia::create([
+        'reunion_id' => $reunion->id,
+        'estado' => 'asistio',
+        'asistente_id' => $catequista->id,
+        'asistente_type' => $catequista->getMorphClass(),
+    ]);
+
+    Passport::actingAs($this->admin);
+
+    $this->deleteJson("/api/users/{$catequista->id}")
+        ->assertNoContent();
+
+    expect(User::find($catequista->id))->toBeNull();
+    expect(Asistencia::find($asistencia->id))->toBeNull();
 });
