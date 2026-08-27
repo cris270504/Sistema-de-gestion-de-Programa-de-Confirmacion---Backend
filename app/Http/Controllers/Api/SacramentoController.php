@@ -7,6 +7,7 @@ use App\Models\Sacramento;
 use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 
 class SacramentoController extends Controller
 {
@@ -33,7 +34,11 @@ class SacramentoController extends Controller
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'nombre' => ['required', 'string', 'max:100', 'unique:sacramentos,nombre'], // Agregué unique por seguridad
+            'nombre' => [
+                'required', 'string', 'max:100',
+                Rule::unique('sacramentos', 'nombre')
+                    ->where(fn ($q) => $q->where('parroquia_id', Tenant::parroquiaId())),
+            ],
         ]);
 
         $sacramento = Sacramento::create([

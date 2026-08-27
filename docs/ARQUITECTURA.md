@@ -213,6 +213,20 @@ Hecho (2026-08-31, Parte 3 — configuración por parroquia):
   `grupoModal` leen tipos de reunión / procedencias de la config.
 - Tests: `ParroquiaConfiguracionTest` (8), front `stores/parroquia.test.js` (5).
 
+Hecho (2026-09-02, Parte 4 — sacramentos/requisitos por parroquia):
+
+- `nombre` pasa de único global a único **por parroquia** en `requisitos`,
+  `sacramentos`, `tipo_apoderados` (migración `unicidad_por_parroquia_en_catalogos`).
+  Las validaciones `unique:` de Grupo/Requisito/Sacramento se acotan a la parroquia.
+- `App\Tenancy\SembrarCatalogoSacramental`: siembra el catálogo estándar
+  (Bautismo→Primera Comunión→Confirmación + 7 requisitos documentales + cascada) en
+  una parroquia. Idempotente. Comando `php artisan parroquia:sembrar-catalogo {id?}`.
+  Se llama en el onboarding (Parte 6).
+- Caché de `RequisitoController` por parroquia (como Sacramento).
+- `asignarRutaSacramental` ya opera solo sobre los sacramentos de la parroquia
+  (Global Scope + caché por parroquia) — verificado con test.
+- Tests: `CatalogoSacramentalTest` (3).
+
 Pendiente:
 
 - Sin paginación real en `users`, `grupos`, `reuniones` (volumen bajo por ahora).

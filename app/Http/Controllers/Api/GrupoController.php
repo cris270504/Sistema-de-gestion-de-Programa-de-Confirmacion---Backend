@@ -62,7 +62,10 @@ class GrupoController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', 'unique:grupos,nombre'],
+            'nombre' => [
+                'required', 'string', 'max:255',
+                Rule::unique('grupos', 'nombre')->where(fn ($q) => $q->where('parroquia_id', Tenant::parroquiaId())),
+            ],
             'periodo' => ['required', 'string', 'max:255'],
             'color' => ['required', 'string', 'max:7'],
             'procedencia' => ['required', 'string', Rule::in(Tenant::config()['procedencias'])],
@@ -87,7 +90,12 @@ class GrupoController extends Controller
         $grupo = Grupo::findOrFail($id);
 
         $data = $request->validate([
-            'nombre' => ['sometimes', 'string', 'max:255', 'unique:grupos,nombre,'.$grupo->id],
+            'nombre' => [
+                'sometimes', 'string', 'max:255',
+                Rule::unique('grupos', 'nombre')
+                    ->where(fn ($q) => $q->where('parroquia_id', Tenant::parroquiaId()))
+                    ->ignore($grupo->id),
+            ],
             'periodo' => ['sometimes', 'string', 'max:255'],
             'color' => ['sometimes', 'required', 'string', 'max:7'],
             'procedencia' => ['sometimes', 'string', Rule::in(Tenant::config()['procedencias'])],
