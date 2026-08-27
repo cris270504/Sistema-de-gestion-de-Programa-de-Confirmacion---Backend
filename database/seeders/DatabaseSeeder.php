@@ -5,10 +5,12 @@ namespace Database\Seeders;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Grupo;
+use App\Models\Parroquia;
 use App\Models\Requisito;
 use App\Models\Sacramento;
 use App\Models\TipoApoderado;
 use App\Models\User;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
@@ -20,6 +22,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolePermissionUserSeeder::class);
+
+        // Todo lo que sigue pertenece a la parroquia piloto.
+        Tenant::set(Parroquia::where('slug', 'parroquia-piloto')->value('id'));
+
         $this->command->info('Creando datos fijos...');
 
         // 2. Crear Grupos

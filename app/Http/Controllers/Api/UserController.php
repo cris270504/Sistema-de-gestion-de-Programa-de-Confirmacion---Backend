@@ -13,12 +13,12 @@ class UserController extends Controller
 {
     public function index()
     {
-        return User::with(['roles', 'grupos'])->latest()->get();
+        return User::parroquiaActual()->with(['roles', 'grupos'])->latest()->get();
     }
 
     public function show($id)
     {
-        return User::with(['roles', 'grupos'])->findOrFail($id);
+        return User::parroquiaActual()->with(['roles', 'grupos'])->findOrFail($id);
     }
 
     public function store(Request $request)
@@ -76,7 +76,7 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $user = User::parroquiaActual()->findOrFail($id);
 
         // La validación aquí está bien, permite actualizar email y contraseña opcionalmente
         $data = $request->validate([
@@ -145,7 +145,7 @@ class UserController extends Controller
 
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::parroquiaActual()->findOrFail($id);
         $user->delete();
 
         // Código 204: No Content es más apropiado para delete exitoso sin cuerpo

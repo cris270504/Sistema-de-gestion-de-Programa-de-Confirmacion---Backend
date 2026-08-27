@@ -35,7 +35,16 @@ de Vite (`/api` → Render). CORS se controla por `CORS_ALLOWED_ORIGINS` (ver `.
 
 ### Alcance de datos (multi-nivel)
 
-1. **Filtro en PHP**: cada controlador que devuelve listas restringe por
+0. **Parroquia (tenant)** — desde la Fase A del plan multi-parroquia. Cada tabla raíz
+   lleva `parroquia_id` (FK NOT NULL). `App\Tenancy\TenantContext` (singleton) guarda
+   la parroquia del request; el middleware `ResolveTenant` la fija desde el usuario
+   autenticado. El trait `App\Tenancy\Concerns\BelongsToParroquia` añade un Global
+   Scope de Eloquent que filtra por esa parroquia y setea `parroquia_id` al crear
+   (desde el contexto, nunca del request). `User` no lleva el Global Scope (rompería
+   la resolución de login); se filtra explícito con `->parroquiaActual()`.
+   En CLI el contexto se marca privilegiado (sin filtro); los seeders acotan con
+   `Tenant::set()` / `Tenant::runFor()`.
+1. **Filtro en PHP por grupo**: cada controlador que devuelve listas restringe por
    `user->grupos` cuando el usuario no es coordinador/super-admin.
 2. **Row Level Security (Postgres)**: última línea de defensa. El middleware
    `SetPostgresRlsContext` fija por request `app.current_user_id` y
@@ -151,6 +160,18 @@ Corregido (2026-08-28, Parte 0 del plan multi-parroquia):
   resuelve por clave estable, no por nombre → una parroquia puede renombrarlos.
 - Tests de aislamiento por grupo: `confirmandos`, `grupos`, `asistencias/matriz`,
   `justificaciones` (`ScopePorGrupoTest`, `JustificacionScopeTest`).
+
+Hecho (2026-08-29, Parte 1 — tenant base):
+
+- Tabla `parroquias` + `parroquia_id` (FK NOT NULL) en users, grupos, confirmandos,
+  apoderados, reunions, sacramentos, requisitos, tipo_apoderados, frontend_error_logs.
+  Backfill a la parroquia piloto.
+- `App\Tenancy\*` (TenantContext, Facade Tenant, ParroquiaScope, BelongsToParroquia,
+  middleware ResolveTenant). Login y `/get-user` devuelven `parroquia`.
+- Bug al paso: `ConfirmandoController::store` accedía a `sacramento_faltante_id` sin
+  `?? null` → warning/500 al crear un confirmando sin ese campo.
+- `TenantIsolationTest` (7 casos de aislamiento entre parroquias).
+- **Pendiente**: RLS por parroquia (Fase B, incluye resolver el pooler de Supabase).
 
 Pendiente:
 

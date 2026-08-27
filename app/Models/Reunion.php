@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Tenancy\Concerns\BelongsToParroquia;
 use Illuminate\Database\Eloquent\Model;
 
 class Reunion extends Model
 {
+    use BelongsToParroquia;
+
     protected $fillable = [
         'nombre_tema',
         'fecha',

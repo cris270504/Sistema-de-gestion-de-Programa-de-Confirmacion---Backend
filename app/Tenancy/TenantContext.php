@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Tenancy;
+
+/**
+ * Contexto de parroquia (tenant) del request/proceso actual. Se registra como
+ * singleton, así que su estado vive lo que dura el request (o el comando artisan).
+ *
+ * - HTTP: el middleware ResolveTenant lo fija desde el usuario autenticado.
+ * - CLI (migrate/seed/tinker/queue): se marca privilegiado en AppServiceProvider,
+ *   o el seeder fija una parroquia concreta.
+ *
+ * El Global Scope `ParroquiaScope` filtra por `parroquiaId()` salvo que el contexto
+ * esté marcado como privilegiado o que aún no haya parroquia (p. ej. durante el login,
+ * antes de saber a qué parroquia pertenece el usuario).
+ */
+class TenantContext
+{
+    private ?int $parroquiaId = null;
+
+    private bool $privileged = false;
+
+    public function set(?int $parroquiaId): void
+    {
+        $this->parroquiaId = $parroquiaId;
+    }
+
+    public function parroquiaId(): ?int
+    {
+        return $this->parroquiaId;
+    }
+
+    public function markPrivileged(bool $privileged = true): void
+    {
+        $this->privileged = $privileged;
+    }
+
+    public function isPrivileged(): bool
+    {
+        return $this->privileged;
+    }
+
+    /**
+     * ¿Debe el Global Scope filtrar por parroquia ahora mismo?
+     */
+    public function shouldScope(): bool
+    {
+        return $this->parroquiaId !== null && ! $this->privileged;
+    }
+
+    /**
+     * Ejecuta un callback ignorando el filtro de parroquia (para el rol proveedor,
+     * onboarding, jobs cross-parroquia, etc.).
+     */
+    public function runPrivileged(callable $callback): mixed
+    {
+        $previous = $this->privileged;
+        $this->privileged = true;
+
+        try {
+            return $callback();
+        } finally {
+            $this->privileged = $previous;
+        }
+    }
+
+    /**
+     * Ejecuta un callback dentro de una parroquia concreta.
+     */
+    public function runFor(?int $parroquiaId, callable $callback): mixed
+    {
+        $previousId = $this->parroquiaId;
+        $previousPriv = $this->privileged;
+        $this->parroquiaId = $parroquiaId;
+        $this->privileged = false;
+
+        try {
+            return $callback();
+        } finally {
+            $this->parroquiaId = $previousId;
+            $this->privileged = $previousPriv;
+        }
+    }
+}

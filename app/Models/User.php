@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Tenancy\Concerns\BelongsToParroquia;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -14,7 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory,HasRoles,Notifiable;
+    use BelongsToParroquia, HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -31,7 +32,19 @@ class User extends Authenticatable
     ];
 
     protected $guard_name = 'api';
+
     protected $appends = ['grupo_ids'];
+
+    /**
+     * User NO lleva Global Scope de parroquia: la resolución de autenticación
+     * (retrieveById, Auth::attempt, Password::sendResetLink) debe poder encontrar
+     * usuarios de cualquier parroquia. El filtrado se hace explícito en los
+     * controladores con ->parroquiaActual().
+     */
+    protected static function shouldApplyParroquiaScope(): bool
+    {
+        return false;
+    }
 
     public function grupos()
     {

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Tenancy\Concerns\BelongsToParroquia;
 use Illuminate\Database\Eloquent\Model;
 
 class FrontendErrorLog extends Model
 {
+    use BelongsToParroquia;
+
     public $timestamps = false;
 
     protected $fillable = [

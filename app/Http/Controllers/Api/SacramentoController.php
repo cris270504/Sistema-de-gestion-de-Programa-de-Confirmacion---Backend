@@ -4,16 +4,23 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sacramento;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class SacramentoController extends Controller
 {
-    public const CACHE_KEY = 'catalogo.sacramentos';
+    /**
+     * Clave de caché del catálogo, por parroquia (cada una tiene sus sacramentos).
+     */
+    public static function cacheKey(): string
+    {
+        return 'catalogo.sacramentos.'.(Tenant::parroquiaId() ?? 'all');
+    }
 
     public function index()
     {
-        return Cache::remember(self::CACHE_KEY, now()->addDay(), function () {
+        return Cache::remember(self::cacheKey(), now()->addDay(), function () {
             return Sacramento::with('requisitos')->latest()->get();
         });
     }
@@ -33,7 +40,7 @@ class SacramentoController extends Controller
             'nombre' => $validatedData['nombre'],
         ]);
 
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::cacheKey());
 
         return response()->json([
             'message' => 'Sacramento creado con éxito',
@@ -52,7 +59,7 @@ class SacramentoController extends Controller
             $sacramento->requisitos()->sync($request->requisitos);
         }
 
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::cacheKey());
 
         return response()->json([
             'message' => 'Sacramento actualizado con éxito', // <-- Corregido
@@ -65,7 +72,7 @@ class SacramentoController extends Controller
         $sacramento = Sacramento::findOrFail($id);
         $sacramento->delete();
 
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::cacheKey());
 
         return response()->json(null, 204);
     }

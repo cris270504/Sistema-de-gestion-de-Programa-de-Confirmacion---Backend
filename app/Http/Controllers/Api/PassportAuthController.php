@@ -31,8 +31,8 @@ class PassportAuthController extends Controller
             return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
 
-        // Obtenemos el usuario autenticado y cargamos sus grupos
-        $user = $request->user()->load('grupos');
+        // Obtenemos el usuario autenticado y cargamos sus grupos + su parroquia
+        $user = $request->user()->load(['grupos', 'parroquia']);
 
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
@@ -47,6 +47,11 @@ class PassportAuthController extends Controller
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
                 'grupo_ids' => $user->grupos->pluck('id'),
+                'parroquia' => $user->parroquia ? [
+                    'id' => $user->parroquia->id,
+                    'slug' => $user->parroquia->slug,
+                    'nombre' => $user->parroquia->nombre,
+                ] : null,
             ],
         ]);
     }
@@ -57,7 +62,7 @@ class PassportAuthController extends Controller
     public function me(Request $request)
     {
         // 1. Cargamos explícitamente SOLO el 'id' y 'nombre' de la tabla grupos
-        $user = $request->user()->load('grupos:id,nombre');
+        $user = $request->user()->load(['grupos:id,nombre', 'parroquia']);
 
         return response()->json([
             'id' => $user->id,
@@ -66,6 +71,11 @@ class PassportAuthController extends Controller
             'dni' => $user->dni,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
+            'parroquia' => $user->parroquia ? [
+                'id' => $user->parroquia->id,
+                'slug' => $user->parroquia->slug,
+                'nombre' => $user->parroquia->nombre,
+            ] : null,
 
             // 2. Mantenemos el arreglo de IDs por si tu frontend lo usa en otra vista
             'grupo_ids' => $user->grupos->pluck('id'),

@@ -84,7 +84,7 @@ class ConfirmandoController extends Controller
         ]);
 
         // 4. Lógica de Negocio (Sacramentos y Requisitos)
-        $this->asignarRutaSacramental($confirmando, $validate['sacramento_faltante_id']);
+        $this->asignarRutaSacramental($confirmando, $validate['sacramento_faltante_id'] ?? null);
 
         // 5. Guardar Apoderados (NUEVO)
         if (! empty($apoderadosData['apoderados'])) {
@@ -177,17 +177,18 @@ class ConfirmandoController extends Controller
 
     private function asignarRutaSacramental(Confirmando $confirmando, $faltanteId)
     {
-        // Catálogo de sacramentos cacheado (comparte cache con SacramentoController::index)
-        // para evitar 3 queries repetidas en cada alta/edición de confirmando.
-        $sacramentos = Cache::remember(SacramentoController::CACHE_KEY, now()->addDay(), function () {
+        // Catálogo de sacramentos cacheado por parroquia (comparte cache con
+        // SacramentoController::index) para evitar 3 queries repetidas en cada
+        // alta/edición de confirmando.
+        $sacramentos = Cache::remember(SacramentoController::cacheKey(), now()->addDay(), function () {
             return Sacramento::with('requisitos')->latest()->get();
         });
 
-        // Se busca por `clave` (estable), no por `nombre` (etiqueta que la parroquia
-        // puede renombrar). Ver migración add_clave_to_sacramentos.
-        $bautismo = $sacramentos->firstWhere('clave', 'bautismo');
-        $comunion = $sacramentos->firstWhere('clave', 'comunion');
-        $confirmacion = $sacramentos->firstWhere('clave', 'confirmacion');
+        // Se busca por `clave` (estable). Fallback al `nombre` estándar mientras el
+        // backfill de `clave` no haya corrido en todos los entornos.
+        $bautismo = $sacramentos->firstWhere('clave', 'bautismo') ?? $sacramentos->firstWhere('nombre', 'Bautismo');
+        $comunion = $sacramentos->firstWhere('clave', 'comunion') ?? $sacramentos->firstWhere('nombre', 'Primera Comunión');
+        $confirmacion = $sacramentos->firstWhere('clave', 'confirmacion') ?? $sacramentos->firstWhere('nombre', 'Confirmación');
 
         if (! $bautismo || ! $comunion || ! $confirmacion) {
             return;

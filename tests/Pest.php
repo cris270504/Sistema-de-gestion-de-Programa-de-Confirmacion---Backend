@@ -3,8 +3,11 @@
 use App\Models\Asistencia;
 use App\Models\Confirmando;
 use App\Models\Grupo;
+use App\Models\Parroquia;
 use App\Models\Reunion;
 use App\Models\User;
+use App\Tenancy\Facades\Tenant;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -22,6 +25,20 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
  // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Contexto de parroquia por defecto para los tests. Los que hacen peticiones
+        // HTTP lo sobrescriben vía el middleware ResolveTenant según el usuario que
+        // actúa; los tests de aislamiento usan Tenant::runFor() para las otras.
+        if (! Schema::hasTable('parroquias')) {
+            return; // tests sin RefreshDatabase (ExampleTest)
+        }
+
+        $parroquia = Parroquia::query()->first()
+            ?? Parroquia::factory()->create(['slug' => 'parroquia-piloto', 'nombre' => 'Parroquia Piloto']);
+
+        Tenant::set($parroquia->id);
+        $this->parroquia = $parroquia;
+    })
     ->in('Feature');
 
 /*

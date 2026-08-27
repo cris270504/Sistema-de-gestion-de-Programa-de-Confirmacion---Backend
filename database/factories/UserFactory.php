@@ -2,12 +2,15 @@
 
 namespace Database\Factories;
 
+use App\Models\Parroquia;
+use App\Models\User;
+use App\Tenancy\Facades\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -21,6 +24,21 @@ class UserFactory extends Factory
      *
      * @return array<string, mixed>
      */
+    /**
+     * parroquia_id (NOT NULL) normalmente lo pone el trait BelongsToParroquia desde el
+     * contexto. Como red de seguridad para tests que aún no fijan el contexto, si el
+     * modelo llega sin parroquia le asignamos una existente (o una nueva).
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function ($user) {
+            if (! $user->parroquia_id) {
+                $user->parroquia_id = Tenant::parroquiaId()
+                    ?? (Parroquia::query()->value('id') ?? Parroquia::factory()->create()->id);
+            }
+        });
+    }
+
     public function definition(): array
     {
         return [

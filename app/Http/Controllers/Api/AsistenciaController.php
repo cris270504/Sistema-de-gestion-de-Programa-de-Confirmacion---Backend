@@ -89,6 +89,7 @@ class AsistenciaController extends Controller
             $personas = $query->orderBy('apellidos')->get();
         } elseif ($tipo === 'Catequistas') {
             $personas = User::role(['catequista', 'coordinador'])
+                ->parroquiaActual()
                 ->with(['grupos', 'roles', 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])

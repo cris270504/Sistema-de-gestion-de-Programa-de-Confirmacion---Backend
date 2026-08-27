@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Tenancy\Concerns\BelongsToParroquia;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Confirmando extends Model
 {
-    use HasFactory;
+    use BelongsToParroquia, HasFactory;
 
     protected $fillable = [
         'nombres', 'apellidos', 'celular', 'genero',
