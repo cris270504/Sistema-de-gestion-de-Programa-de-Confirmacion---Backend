@@ -23,11 +23,32 @@ return new class extends Migration
         }
 
         // El enum de Laravel se traduce a un CHECK constraint en Postgres; hay que
-        // recrearlo para admitir 'no_cumplido'. En sqlite (tests) el enum es solo
-        // varchar sin constraint, así que no aplica.
+        // recrearlo para admitir 'no_cumplido'. Se eliminan TODOS los checks que
+        // toquen la columna `estado` (por si producción lo nombró distinto al
+        // aplicarlo a mano) y se añade el definitivo. En sqlite (tests) el enum es
+        // solo varchar sin constraint, así que este bloque no aplica.
         if (DB::connection()->getDriverName() === 'pgsql') {
-            DB::statement('ALTER TABLE justificaciones DROP CONSTRAINT IF EXISTS justificaciones_estado_check');
-            DB::statement("ALTER TABLE justificaciones ADD CONSTRAINT justificaciones_estado_check CHECK (estado IN ('injustificado', 'pendiente', 'justificado', 'no_cumplido'))");
+            DB::unprepared(<<<'SQL'
+                DO $$
+                DECLARE
+                    r record;
+                BEGIN
+                    FOR r IN
+                        SELECT con.conname
+                        FROM pg_constraint con
+                        JOIN pg_class rel ON rel.oid = con.conrelid
+                        WHERE rel.relname = 'justificaciones'
+                          AND con.contype = 'c'
+                          AND pg_get_constraintdef(con.oid) ILIKE '%estado%'
+                    LOOP
+                        EXECUTE format('ALTER TABLE justificaciones DROP CONSTRAINT %I', r.conname);
+                    END LOOP;
+
+                    ALTER TABLE justificaciones
+                        ADD CONSTRAINT justificaciones_estado_check
+                        CHECK (estado IN ('injustificado', 'pendiente', 'justificado', 'no_cumplido'));
+                END $$;
+            SQL);
         }
     }
 

@@ -13,6 +13,16 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
+        // Si no hay un transporte de correo real configurado (por defecto Laravel
+        // usa 'log', que no envía nada), avisamos explícitamente en vez de decir
+        // "te enviamos un enlace" cuando en realidad no salió ningún correo.
+        if (in_array(config('mail.default'), ['log', 'array', null, ''], true)) {
+            return response()->json([
+                'message' => 'El sistema todavía no está configurado para enviar correos. '
+                    .'Contacta al administrador para restablecer tu contraseña.',
+            ], 503);
+        }
+
         $status = Password::sendResetLink($request->only('email'));
 
         // Respuesta genérica: no revelamos si el email existe o no (evita enumeración

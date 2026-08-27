@@ -149,7 +149,9 @@ Pendiente:
 - `justificaciones` no está bajo RLS (protegida hoy por el filtro `exists:` + PHP).
 - Sin paginación real en `users`, `grupos`, `reuniones` (volumen bajo por ahora).
 - Cobertura de tests baja en el backend.
-- Verificar en Render: `APP_DEBUG=false`, `APP_ENV=production`, mailer real configurado
-  (hoy `MAIL_MAILER=log` → "recuperar contraseña" no envía correo en prod).
+- Verificar en Render: `APP_DEBUG=false`, `APP_ENV=production`.
+- Configurar un mailer real (hoy `MAIL_MAILER=log`). Mientras no lo esté,
+  `POST /forgot-password` responde `503` con un aviso explícito de que el envío de
+  correos no está configurado (no simula que mandó el enlace).
 - `procedencia` (`sede`/`caserio`) y los tipos de reunión están hardcodeados.
 - Multi-parroquia: ver `PLAN-MULTITENANT.md`.
