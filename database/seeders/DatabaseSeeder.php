@@ -23,8 +23,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RolePermissionUserSeeder::class);
 
-        // Todo lo que sigue pertenece a la parroquia piloto.
-        Tenant::set(Parroquia::where('slug', 'parroquia-piloto')->value('id'));
+        // Todo lo que sigue pertenece a la parroquia inicial.
+        Tenant::set(Parroquia::query()->orderBy('id')->value('id'));
 
         $this->command->info('Creando datos fijos...');
 

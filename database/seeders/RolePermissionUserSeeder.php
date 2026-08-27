@@ -20,11 +20,13 @@ class RolePermissionUserSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Los usuarios demo pertenecen a la parroquia piloto.
-        $parroquia = Parroquia::firstOrCreate(
-            ['slug' => 'parroquia-piloto'],
-            ['nombre' => 'Parroquia Piloto']
-        );
+        // Los usuarios demo pertenecen a la parroquia inicial (la primera que exista;
+        // la crea la migración seed_parroquia_piloto).
+        $parroquia = Parroquia::query()->orderBy('id')->first()
+            ?? Parroquia::create([
+                'nombre' => 'Parroquia Sagrado Corazón de Jesús',
+                'slug' => 'sagrado-corazon-de-jesus',
+            ]);
         Tenant::set($parroquia->id);
 
         $permissions = [

@@ -165,13 +165,29 @@ Hecho (2026-08-29, Parte 1 — tenant base):
 
 - Tabla `parroquias` + `parroquia_id` (FK NOT NULL) en users, grupos, confirmandos,
   apoderados, reunions, sacramentos, requisitos, tipo_apoderados, frontend_error_logs.
-  Backfill a la parroquia piloto.
+  Backfill a la parroquia inicial (Parroquia Sagrado Corazón de Jesús).
 - `App\Tenancy\*` (TenantContext, Facade Tenant, ParroquiaScope, BelongsToParroquia,
   middleware ResolveTenant). Login y `/get-user` devuelven `parroquia`.
 - Bug al paso: `ConfirmandoController::store` accedía a `sacramento_faltante_id` sin
   `?? null` → warning/500 al crear un confirmando sin ese campo.
 - `TenantIsolationTest` (7 casos de aislamiento entre parroquias).
-- **Pendiente**: RLS por parroquia (Fase B, incluye resolver el pooler de Supabase).
+
+Hecho (2026-08-30, Parte 2 — RLS por parroquia):
+
+- La app usa el **session pooler** de Supabase (`pooler.supabase.com:5432`), donde
+  `set_config(..., false)` (ámbito de sesión) es correcto. **No usar el transaction
+  pooler (:6543)** — perdería el contexto RLS.
+- `SetPostgresRlsContext` fija también `app.current_parroquia_id`.
+- Migración `add_parroquia_to_rls`: políticas **RESTRICTIVE** de parroquia (se
+  combinan con AND sobre las permisivas de alcance-por-grupo existentes, sin tocarlas)
+  en las tablas con `parroquia_id` directo: grupos, confirmandos, apoderados (ya con
+  RLS) + reunions, sacramentos, requisitos, tipo_apoderados, users, frontend_error_logs
+  (RLS nueva). Cada política lee la columna de su fila, sin subconsultas → sin recursión.
+  Las pivote y asistencia/justificaciones NO llevan política de parroquia: la app
+  siempre las alcanza vía su modelo padre, ya acotado. El filtro de parroquia NO lo
+  salta el "privilegiado" (un super-admin de A no ve B); el rol `proveedor` llega en
+  la Fase E.
+- `TenantRlsPgsqlTest` (se salta salvo que la suite apunte a pgsql).
 
 Pendiente:
 

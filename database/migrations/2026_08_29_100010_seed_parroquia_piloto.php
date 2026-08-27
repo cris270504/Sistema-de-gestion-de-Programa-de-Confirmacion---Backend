@@ -4,17 +4,17 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Crea la parroquia piloto (la única que existía antes del multi-tenant). Todos
- * los datos actuales se le asignan en la migración add_parroquia_id_to_core_tables.
+ * Crea la parroquia inicial (la única que existía antes del multi-tenant). Todos
+ * los datos actuales se le asignan en add_parroquia_id_to_core_tables.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        if (DB::table('parroquias')->where('slug', 'parroquia-piloto')->doesntExist()) {
+        if (DB::table('parroquias')->count() === 0) {
             DB::table('parroquias')->insert([
-                'nombre' => 'Parroquia Piloto',
-                'slug' => 'parroquia-piloto',
+                'nombre' => 'Parroquia Sagrado Corazón de Jesús',
+                'slug' => 'sagrado-corazon-de-jesus',
                 'activa' => true,
                 'zona_horaria' => 'America/Lima',
                 'created_at' => now(),
@@ -25,6 +25,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::table('parroquias')->where('slug', 'parroquia-piloto')->delete();
+        DB::table('parroquias')->whereIn('slug', ['sagrado-corazon-de-jesus', 'parroquia-piloto'])->delete();
     }
 };

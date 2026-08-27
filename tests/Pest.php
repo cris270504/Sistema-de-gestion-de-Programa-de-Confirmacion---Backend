@@ -33,8 +33,7 @@ pest()->extend(TestCase::class)
             return; // tests sin RefreshDatabase (ExampleTest)
         }
 
-        $parroquia = Parroquia::query()->first()
-            ?? Parroquia::factory()->create(['slug' => 'parroquia-piloto', 'nombre' => 'Parroquia Piloto']);
+        $parroquia = Parroquia::query()->first() ?? Parroquia::factory()->create();
 
         Tenant::set($parroquia->id);
         $this->parroquia = $parroquia;
