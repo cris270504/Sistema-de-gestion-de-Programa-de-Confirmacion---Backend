@@ -192,11 +192,14 @@ return [
         'key' => 'spatie.permission.cache',
 
         /*
-         * You may optionally indicate a specific cache driver to use for permission and
-         * role caching using any of the `store` drivers listed in the cache.php config
-         * file. Using 'default' here means to use the `default` set in cache.php.
+         * Se usa el store 'array' (memoria del request, sin persistencia): las
+         * migraciones/seed se corren desde local contra Supabase, así que un cache
+         * persistente en Render quedaría desactualizado cuando se agrega un permiso
+         * nuevo (síntoma: "User does not have the right permissions" pese a tenerlo
+         * en la BD). Con 'array' cada request relee los permisos de la BD (1 query
+         * ligera) y nunca hay cache obsoleta entre procesos.
          */
 
-        'store' => 'default',
+        'store' => 'array',
     ],
 ];

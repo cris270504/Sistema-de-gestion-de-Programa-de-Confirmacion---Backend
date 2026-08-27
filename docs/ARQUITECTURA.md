@@ -29,7 +29,10 @@ de Vite (`/api` → Render). CORS se controla por `CORS_ALLOWED_ORIGINS` (ver `.
   (flujo estándar de Laravel, con `throttle`). El link del correo apunta a
   `APP_FRONTEND_URL/reset-password/{token}`.
 - **Roles** (Spatie, guard `api`): `super-admin`, `coordinador`, `catequista`.
-  Los permisos están en `RolePermissionUserSeeder`.
+  Los permisos están en `RolePermissionUserSeeder`. La caché de Spatie usa el store
+  `array` (`config/permission.php`): migraciones/seed se corren desde local contra
+  Supabase, así que un cache persistente en Render quedaría obsoleto al agregar un
+  permiso (síntoma: "User does not have the right permissions").
 - **Rutas protegidas**: `auth:api` + middleware `permission:<nombre>` por endpoint
   (`routes/api.php`).
 
