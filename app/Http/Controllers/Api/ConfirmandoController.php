@@ -411,6 +411,7 @@ public function index(Request $request)
         $confirmando = Confirmando::with([
             'grupo:id,nombre',
             'apoderados:id,nombres,apellidos,celular',
+            'sacramentos:id,nombre',
             'asistencias' => function ($query) {
                 $query->with([
                     'reunion:id,nombre_tema,fecha',
@@ -433,14 +434,17 @@ public function index(Request $request)
             })->count(),
         ];
 
-        $sacramentos = [];
-        if ($confirmando->falta_bautizo) {
-            $sacramentos[] = 'Bautizo';
-        }
-        if ($confirmando->falta_comunion) {
-            $sacramentos[] = 'Primera Comunión';
-        }
-        $sacramentos_texto = empty($sacramentos) ? 'Ninguno (Tiene todos)' : implode(' y ', $sacramentos);
+        // Sacramentos previos que aún le faltan: los que tiene en la ruta sacramental
+        // con pivote estado 'pendiente', excluyendo la Confirmación (que es la meta del
+        // programa, no un "faltante" a reportar aquí).
+        $sacramentosFaltantes = $confirmando->sacramentos
+            ->filter(fn ($s) => $s->pivot->estado === 'pendiente' && $s->nombre !== 'Confirmación')
+            ->pluck('nombre')
+            ->values();
+
+        $sacramentos_texto = $sacramentosFaltantes->isEmpty()
+            ? 'Ninguno (Tiene todos)'
+            : $sacramentosFaltantes->implode(' y ');
 
         return response()->json([
             'status' => true,

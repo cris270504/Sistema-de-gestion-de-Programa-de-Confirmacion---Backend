@@ -15,12 +15,19 @@ class PassportAuthController extends Controller
      */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'dni' => ['required', 'string', 'max:8'],
+        // Acepta el campo unificado 'login' (correo o DNI). Se mantiene compatibilidad
+        // con clientes viejos que aún manden 'dni' o 'email' por separado.
+        $request->validate([
+            'login' => ['required_without_all:dni,email', 'string', 'max:150'],
+            'dni' => ['required_without_all:login,email', 'string', 'max:20'],
+            'email' => ['required_without_all:login,dni', 'string', 'email', 'max:150'],
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials)) {
+        $login = $request->input('login', $request->input('email', $request->input('dni')));
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'dni';
+
+        if (! Auth::attempt([$field => $login, 'password' => $request->input('password')])) {
             return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
 

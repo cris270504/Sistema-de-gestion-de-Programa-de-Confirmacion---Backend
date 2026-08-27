@@ -13,19 +13,18 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        // Laravel busca automáticamente el email en la tabla 'users'
-        // Si lo encuentra, envía el correo. Si no, devuelve el estado.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $status = Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json(['status' => __($status)]);
+        // Respuesta genérica: no revelamos si el email existe o no (evita enumeración
+        // de usuarios). Solo el throttle se informa, para que el usuario sepa esperar.
+        if ($status === Password::RESET_THROTTLED) {
+            throw ValidationException::withMessages([
+                'email' => [__($status)],
+            ]);
         }
 
-        // Si el email no existe en la BD, lanza error 422
-        throw ValidationException::withMessages([
-            'email' => [__($status)],
+        return response()->json([
+            'status' => 'Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña.',
         ]);
     }
 }

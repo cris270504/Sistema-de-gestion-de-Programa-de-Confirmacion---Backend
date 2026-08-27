@@ -24,7 +24,7 @@ class ReunionController extends Controller
             'nombre_tema' => ['required', 'string', 'max:100'],
             'fecha' => ['required', 'date', 'after_or_equal:today'],
             'descripcion' => ['nullable', 'string', 'max:150'],
-            'tipo' => ['required', 'string'],
+            'tipo' => ['required', 'string', 'in:Catequistas,Confirmandos,Apoderados'],
         ]);
 
         $reunion = Reunion::create($data);
@@ -39,11 +39,13 @@ class ReunionController extends Controller
     {
         $reunion = Reunion::findOrFail($id);
 
+        // En edición NO se exige 'after_or_equal:today': debe poder corregirse el tema,
+        // la descripción o el tipo de una reunión ya pasada sin tener que moverle la fecha.
         $data = $request->validate([
             'nombre_tema' => ['required', 'string', 'max:100'],
-            'fecha' => ['required', 'date', 'after_or_equal:today'],
+            'fecha' => ['required', 'date'],
             'descripcion' => ['nullable', 'string', 'max:150'],
-            'tipo' => ['required', 'string'],
+            'tipo' => ['required', 'string', 'in:Catequistas,Confirmandos,Apoderados'],
         ]);
 
         $reunion->update($data);

@@ -29,8 +29,14 @@ class ConfirmandoFactory extends Factory
             'genero' => $this->faker->randomElement(['m', 'f']),
             'fecha_nacimiento' => $this->faker->dateTimeBetween('-17 years', '-15 years'),
 
-            // Asigna un 'grupo_id' de un grupo que ya exista
-            'grupo_id' => Grupo::inRandomOrder()->first()->id,
+            // Asigna un grupo existente al azar; si aún no hay ninguno (p. ej. en tests
+            // que no siembran grupos), crea uno mínimo en vez de reventar con null.
+            'grupo_id' => Grupo::inRandomOrder()->value('id') ?? Grupo::create([
+                'nombre' => $this->faker->unique()->words(2, true),
+                'periodo' => (string) now()->year,
+                'color' => $this->faker->hexColor(),
+                'procedencia' => 'sede',
+            ])->id,
         ];
     }
 }

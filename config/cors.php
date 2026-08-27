@@ -19,9 +19,18 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Lista blanca de orígenes. Se arma desde CORS_ALLOWED_ORIGINS (CSV) y, como
+    // fallback, desde APP_FRONTEND_URL. Nunca '*' junto con supports_credentials.
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(
+        ',',
+        env('CORS_ALLOWED_ORIGINS', env('APP_FRONTEND_URL', 'http://localhost:5173'))
+    )))),
 
-    'allowed_origins_patterns' => [],
+    // Permite previews de Vercel (https://<algo>.vercel.app) sin listarlos uno a uno.
+    'allowed_origins_patterns' => array_values(array_filter(array_map('trim', explode(
+        ',',
+        env('CORS_ALLOWED_ORIGINS_PATTERNS', '')
+    )))),
 
     'allowed_headers' => ['*'],
 
