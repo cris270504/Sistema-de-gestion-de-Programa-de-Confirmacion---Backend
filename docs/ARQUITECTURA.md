@@ -144,14 +144,21 @@ Corregido (2026-08-27):
 - Frontend recalculaba alertas con umbrales distintos al backend.
 - `.rnd` versionado.
 
+Corregido (2026-08-28, Parte 0 del plan multi-parroquia):
+
+- `justificaciones` ahora bajo RLS (hereda el alcance de su `asistencia`).
+- `sacramentos.clave` (`bautismo`/`comunion`/`confirmacion`): `asignarRutaSacramental`
+  resuelve por clave estable, no por nombre → una parroquia puede renombrarlos.
+- Tests de aislamiento por grupo: `confirmandos`, `grupos`, `asistencias/matriz`,
+  `justificaciones` (`ScopePorGrupoTest`, `JustificacionScopeTest`).
+
 Pendiente:
 
-- `justificaciones` no está bajo RLS (protegida hoy por el filtro `exists:` + PHP).
 - Sin paginación real en `users`, `grupos`, `reuniones` (volumen bajo por ahora).
-- Cobertura de tests baja en el backend.
 - Verificar en Render: `APP_DEBUG=false`, `APP_ENV=production`.
 - Configurar un mailer real (hoy `MAIL_MAILER=log`). Mientras no lo esté,
   `POST /forgot-password` responde `503` con un aviso explícito de que el envío de
   correos no está configurado (no simula que mandó el enlace).
-- `procedencia` (`sede`/`caserio`) y los tipos de reunión están hardcodeados.
+- `procedencia` (`sede`/`caserio`) y los tipos de reunión están hardcodeados
+  (se resuelven en la Fase C del plan multi-parroquia).
 - Multi-parroquia: ver `PLAN-MULTITENANT.md`.

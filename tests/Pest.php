@@ -1,5 +1,14 @@
 <?php
 
+use App\Models\Asistencia;
+use App\Models\Confirmando;
+use App\Models\Grupo;
+use App\Models\Reunion;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -11,7 +20,7 @@
 |
 */
 
-pest()->extend(Tests\TestCase::class)
+pest()->extend(TestCase::class)
  // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature');
 
@@ -44,4 +53,53 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Crea un grupo mínimo válido para tests.
+ */
+function grupoCon(string $nombre): Grupo
+{
+    return Grupo::create([
+        'nombre' => $nombre,
+        'periodo' => '2026',
+        'color' => '#2563eb',
+        'procedencia' => 'sede',
+    ]);
+}
+
+/**
+ * Registra una falta injustificada para un confirmando (crea la reunión).
+ */
+function faltaInjustificada(Confirmando $c, ?Reunion $reunion = null): Asistencia
+{
+    $reunion ??= Reunion::create([
+        'nombre_tema' => 'Reunión',
+        'fecha' => now()->subDays(5),
+        'tipo' => 'Confirmandos',
+    ]);
+
+    return $c->asistencias()->create([
+        'reunion_id' => $reunion->id,
+        'estado' => 'falta injustificada',
+    ]);
+}
+
+/**
+ * Catequista con un permiso y (opcionalmente) grupos asignados.
+ */
+function catequistaCon(array $permisos = [], array $grupoIds = []): User
+{
+    Role::findOrCreate('catequista', 'api');
+    $user = User::factory()->create();
+    $user->assignRole('catequista');
+    foreach ($permisos as $p) {
+        Permission::findOrCreate($p, 'api');
+        $user->givePermissionTo($p);
+    }
+    if ($grupoIds) {
+        $user->grupos()->attach($grupoIds);
+    }
+
+    return $user;
 }

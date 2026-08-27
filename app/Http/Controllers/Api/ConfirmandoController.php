@@ -15,33 +15,32 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
 {
+    public function index(Request $request)
+    {
+        $user = $request->user();
 
-public function index(Request $request)
-{
-    $user = $request->user();
+        $query = Confirmando::with([
+            'grupo:id,nombre,color,procedencia',
+            'sacramentos:id,nombre',
+            'apoderados:id,nombres,apellidos,celular',
+        ])->select(
+            'id', 'nombres', 'apellidos', 'fecha_nacimiento',
+            'genero', 'celular', 'estado', 'grupo_id'
+        );
 
-    $query = Confirmando::with([
-        'grupo:id,nombre,color,procedencia',
-        'sacramentos:id,nombre', 
-        'apoderados:id,nombres,apellidos,celular', 
-    ])->select(
-        'id', 'nombres', 'apellidos', 'fecha_nacimiento',
-        'genero', 'celular', 'estado', 'grupo_id'
-    );
+        if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
+            $query->whereIn('grupo_id', $user->grupos->pluck('id'));
+        }
 
-    if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
-        $query->whereIn('grupo_id', $user->grupos->pluck('id'));
+        // Paginado con techo real (antes era ->get() sin límite). El default es alto a
+        // propósito: hoy el frontend sigue filtrando/paginando en cliente sobre esta lista
+        // completa (ListConfirmandos.vue, ~125 confirmandos). Si la cantidad crece mucho,
+        // hay que bajar este default y mover el filtrado a server-side (búsqueda con
+        // debounce + query params) en vez de seguir subiendo este número.
+        $perPage = (int) $request->query('per_page', 300);
+
+        return $query->latest('id')->paginate($perPage);
     }
-
-    // Paginado con techo real (antes era ->get() sin límite). El default es alto a
-    // propósito: hoy el frontend sigue filtrando/paginando en cliente sobre esta lista
-    // completa (ListConfirmandos.vue, ~125 confirmandos). Si la cantidad crece mucho,
-    // hay que bajar este default y mover el filtrado a server-side (búsqueda con
-    // debounce + query params) en vez de seguir subiendo este número.
-    $perPage = (int) $request->query('per_page', 300);
-
-    return $query->latest('id')->paginate($perPage);
-}
 
     public function show($id)
     {
@@ -184,9 +183,11 @@ public function index(Request $request)
             return Sacramento::with('requisitos')->latest()->get();
         });
 
-        $bautismo = $sacramentos->firstWhere('nombre', 'Bautismo');
-        $comunion = $sacramentos->firstWhere('nombre', 'Primera Comunión');
-        $confirmacion = $sacramentos->firstWhere('nombre', 'Confirmación');
+        // Se busca por `clave` (estable), no por `nombre` (etiqueta que la parroquia
+        // puede renombrar). Ver migración add_clave_to_sacramentos.
+        $bautismo = $sacramentos->firstWhere('clave', 'bautismo');
+        $comunion = $sacramentos->firstWhere('clave', 'comunion');
+        $confirmacion = $sacramentos->firstWhere('clave', 'confirmacion');
 
         if (! $bautismo || ! $comunion || ! $confirmacion) {
             return;

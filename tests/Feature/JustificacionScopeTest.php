@@ -1,39 +1,16 @@
 <?php
 
 use App\Models\Confirmando;
-use App\Models\Grupo;
-use App\Models\Reunion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Passport\Passport;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
-function grupoCon(string $nombre): Grupo
-{
-    return Grupo::create([
-        'nombre' => $nombre,
-        'periodo' => '2026',
-        'color' => '#2563eb',
-        'procedencia' => 'sede',
-    ]);
-}
-
-function faltaInjustificada(Confirmando $c): void
-{
-    $reunion = Reunion::create([
-        'nombre_tema' => 'Reunión',
-        'fecha' => now()->subDays(5),
-        'tipo' => 'Confirmandos',
-    ]);
-    $c->asistencias()->create(['reunion_id' => $reunion->id, 'estado' => 'falta injustificada']);
-}
+// grupoCon(), faltaInjustificada() y catequistaCon() viven en tests/Pest.php
 
 beforeEach(function () {
-    Permission::findOrCreate('ver asistencias', 'api');
-    Role::findOrCreate('catequista', 'api');
     Role::findOrCreate('coordinador', 'api');
 
     $this->grupoA = grupoCon('Grupo A');
@@ -44,10 +21,7 @@ beforeEach(function () {
     faltaInjustificada($this->confA);
     faltaInjustificada($this->confB);
 
-    $this->catequista = User::factory()->create();
-    $this->catequista->assignRole('catequista');
-    $this->catequista->givePermissionTo('ver asistencias');
-    $this->catequista->grupos()->attach($this->grupoA->id);
+    $this->catequista = catequistaCon(['ver asistencias'], [$this->grupoA->id]);
 });
 
 it('el catequista solo ve las justificaciones de sus grupos', function () {

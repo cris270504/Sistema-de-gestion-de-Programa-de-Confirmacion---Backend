@@ -8,6 +8,7 @@ class Sacramento extends Model
 {
     protected $fillable = [
         'nombre',
+        'clave',
     ];
 
     public function requisitos()
