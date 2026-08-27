@@ -26,8 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             '*', // Opcional: Desactiva CSRF temporalmente si tienes problemas con eso
         ]);
-        $middleware->appendToGroup('api', SetPostgresRlsContext::class);
+        // ResolveTenant primero: fija App\Tenancy\TenantContext (parroquia / privilegiado).
+        // SetPostgresRlsContext lo lee para propagar el contexto a la sesión Postgres.
         $middleware->appendToGroup('api', ResolveTenant::class);
+        $middleware->appendToGroup('api', SetPostgresRlsContext::class);
         $middleware->appendToGroup('api', SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

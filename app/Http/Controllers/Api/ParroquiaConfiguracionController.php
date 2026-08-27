@@ -40,11 +40,16 @@ class ParroquiaConfiguracionController extends Controller
             'branding.nombre_publico' => ['nullable', 'string', 'max:120'],
             'branding.logo_url' => ['nullable', 'url', 'max:500'],
             'branding.color_primario' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+
+            'roles_labels' => ['nullable', 'array'],
+            'roles_labels.*' => ['nullable', 'string', 'max:60'],
         ]);
 
         // Normaliza los tipos de reunión al orden canónico y sin duplicados.
         $data['tipos_reunion'] = array_values(array_unique($data['tipos_reunion']));
         $data['procedencias'] = array_values(array_unique(array_map('trim', $data['procedencias'])));
+        // Quita etiquetas de rol vacías (vuelven al nombre interno).
+        $data['roles_labels'] = array_filter($data['roles_labels'] ?? [], fn ($v) => filled($v));
 
         $parroquiaId = Tenant::parroquiaId();
 

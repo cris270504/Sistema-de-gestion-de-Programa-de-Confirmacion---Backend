@@ -12,12 +12,14 @@ use App\Http\Controllers\Api\JustificacionController;
 use App\Http\Controllers\Api\ParroquiaConfiguracionController;
 use App\Http\Controllers\Api\PassportAuthController;
 use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\ProveedorParroquiaController;
 use App\Http\Controllers\Api\RequisitoController;
 use App\Http\Controllers\Api\ReunionController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SacramentoController;
 use App\Http\Controllers\Api\TipoApoderadoController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Middleware\ParroquiaActiva;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -39,7 +41,7 @@ Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink
 Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->middleware('throttle:6,10');
 
 // Rutas protegidas
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
     Route::get('/dashboard/metricas', [DashboardController::class, 'metricasYAlertas']);
@@ -63,18 +65,29 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:eliminar usuarios');
 
     // --- ROLES ---
+    // Ver: el admin de parroquia lo necesita para asignar roles a sus usuarios.
+    // Crear/editar/eliminar el catálogo global de roles: solo el proveedor.
     Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:ver roles');
-    Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:crear roles');
     Route::get('/roles/{id}', [RoleController::class, 'show'])->middleware('permission:ver roles');
-    Route::put('/roles/{id}', [RoleController::class, 'update'])->middleware('permission:editar roles');
-    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->middleware('permission:eliminar roles');
+    Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:administrar plataforma');
+    Route::put('/roles/{id}', [RoleController::class, 'update'])->middleware('permission:administrar plataforma');
+    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->middleware('permission:administrar plataforma');
 
-    // --- PERMISSIONS ---
-    Route::get('/permissions', [PermissionController::class, 'index'])->middleware('permission:ver permisos');
-    Route::post('/permissions', [PermissionController::class, 'store'])->middleware('permission:crear permisos');
-    Route::get('/permissions/{id}', [PermissionController::class, 'show'])->middleware('permission:ver permisos');
-    Route::put('/permissions/{id}', [PermissionController::class, 'update'])->middleware('permission:editar permisos');
-    Route::delete('/permissions/{id}', [PermissionController::class, 'destroy'])->middleware('permission:eliminar permisos');
+    // --- PERMISSIONS (catálogo global, solo proveedor) ---
+    Route::middleware('permission:administrar plataforma')->group(function () {
+        Route::get('/permissions', [PermissionController::class, 'index']);
+        Route::post('/permissions', [PermissionController::class, 'store']);
+        Route::get('/permissions/{id}', [PermissionController::class, 'show']);
+        Route::put('/permissions/{id}', [PermissionController::class, 'update']);
+        Route::delete('/permissions/{id}', [PermissionController::class, 'destroy']);
+    });
+
+    // --- PROVEEDOR (plataforma) ---
+    Route::middleware('permission:administrar plataforma')->prefix('proveedor')->group(function () {
+        Route::get('/parroquias', [ProveedorParroquiaController::class, 'index']);
+        Route::post('/parroquias', [ProveedorParroquiaController::class, 'store']);
+        Route::patch('/parroquias/{parroquia}', [ProveedorParroquiaController::class, 'update']);
+    });
 
     // --- CONFIRMANDOS ---
     Route::get('/confirmandos/{id}/perfil', [ConfirmandoController::class, 'obtenerPerfilCompleto'])->middleware('permission:ver confirmandos');

@@ -20,6 +20,7 @@ class ParroquiaConfiguracion extends Model
         'umbrales_alerta',
         'procedencias',
         'branding',
+        'roles_labels',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class ParroquiaConfiguracion extends Model
         'umbrales_alerta' => 'array',
         'procedencias' => 'array',
         'branding' => 'array',
+        'roles_labels' => 'array',
     ];
 
     /**
@@ -45,6 +47,7 @@ class ParroquiaConfiguracion extends Model
             'umbrales_alerta' => $this->umbrales_alerta,
             'procedencias' => $this->procedencias,
             'branding' => $this->branding,
+            'roles_labels' => $this->roles_labels,
         ];
     }
 }

@@ -57,19 +57,31 @@ class RolePermissionUserSeeder extends Seeder
             // Mantenimiento
             'ver mantenimiento', 'crear respaldo', 'restaurar respaldo',
 
-            // Parroquia (SaaS)
-            'administrar parroquia',
+            // Parroquia / plataforma (SaaS)
+            'administrar parroquia', 'administrar plataforma',
         ];
 
         foreach ($permissions as $name) {
             Permission::findOrCreate($name, 'api');
         }
 
+        $roleProveedor = Role::findOrCreate('proveedor', 'api');
         $roleAdmin = Role::findOrCreate('super-admin', 'api');
         $roleCoordinador = Role::findOrCreate('coordinador', 'api');
         $roleCatequista = Role::findOrCreate('catequista', 'api');
 
-        $roleAdmin->syncPermissions(Permission::all());
+        // El proveedor (dueño de la plataforma) puede todo.
+        $roleProveedor->syncPermissions(Permission::all());
+
+        // super-admin = admin de UNA parroquia: todo menos el catálogo global de
+        // roles/permisos (eso es del proveedor).
+        $roleAdmin->syncPermissions(
+            Permission::whereNotIn('name', [
+                'administrar plataforma',
+                'crear roles', 'editar roles', 'eliminar roles',
+                'ver permisos', 'crear permisos', 'editar permisos', 'eliminar permisos', 'asignar permisos',
+            ])->pluck('name')
+        );
         $roleCoordinador->syncPermissions(['ver dashboard',
             'ver grupos', 'ver todos los grupos', 'crear grupos', 'editar grupos', 'eliminar grupos',
             'asignar catequista', 'asignar confirmandos', 'ver confirmandos', 'crear confirmandos', 'editar confirmandos',
@@ -83,6 +95,15 @@ class RolePermissionUserSeeder extends Seeder
         $roleCatequista->syncPermissions(['ver dashboard', 'ver cronograma', 'ver confirmandos', 'ver asistencias', 'ver catequistas',
             'guardar asistencias', 'ver requisitos', 'ver grupos',
         ]);
+
+        User::firstOrCreate(
+            ['email' => 'proveedor@sistema.com'],
+            [
+                'name' => 'Proveedor del Sistema',
+                'dni' => '00000001',
+                'password' => Hash::make('123456789'),
+            ]
+        )->assignRole($roleProveedor);
 
         User::firstOrCreate(
             ['email' => 'admin@admin.com'],

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Tenancy\TenantContext;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // El proveedor (dueño de la plataforma) tiene acceso a todo: cualquier
+        // chequeo de permiso (incluido el middleware `permission:`) pasa para él.
+        Gate::before(fn ($user) => $user->hasRole('proveedor') ? true : null);
+
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
             // Cambia esta URL por la URL real de tu Frontend en Vue
             // El frontend recibirá el token y el email por URL

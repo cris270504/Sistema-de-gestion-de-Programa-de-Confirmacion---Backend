@@ -227,6 +227,27 @@ Hecho (2026-09-02, Parte 4 — sacramentos/requisitos por parroquia):
   (Global Scope + caché por parroquia) — verificado con test.
 - Tests: `CatalogoSacramentalTest` (3).
 
+Hecho (2026-09-03, Parte 5 — roles de dos niveles):
+
+- Rol global **`proveedor`** (dueño de la plataforma) + permiso `administrar
+  plataforma`. `Gate::before` en AppServiceProvider: el proveedor pasa cualquier
+  chequeo de permiso. `ResolveTenant`: proveedor sin filtro de parroquia (puede
+  acotarse con `?parroquia_id=` / `X-Parroquia-Id`).
+- `super-admin` = admin de UNA parroquia; pierde crear/editar/eliminar el catálogo
+  global de roles/permisos (esas rutas exigen `administrar plataforma`).
+- `UserController`: un admin de parroquia no puede otorgar el rol `proveedor`.
+- Etiquetas de rol por parroquia (`parroquia_configuraciones.roles_labels`, jsonb).
+  El backend chequea el nombre interno; el frontend muestra la etiqueta.
+- Middleware `ParroquiaActiva`: si `parroquia.activa === false` → 403 (salvo proveedor).
+- `ProveedorParroquiaController`: `GET/POST/PATCH /api/proveedor/parroquias`. El
+  `POST` crea parroquia + config por defecto + primer admin (super-admin) con
+  contraseña temporal + catálogo sacramental (`SembrarCatalogoSacramental`).
+- Comando `php artisan proveedor:promover {email}`.
+- Migración `rol_proveedor_y_etiquetas_de_rol`.
+- Frontend: store `roleLabel()`, vista `/parroquias` (proveedor), sección "Nombres
+  de los roles" en Configuración, sidebar "Plataforma".
+- Tests: `RolesDosNivelesTest` (6). Suite: 47 verde, 1 skip.
+
 Pendiente:
 
 - Sin paginación real en `users`, `grupos`, `reuniones` (volumen bajo por ahora).

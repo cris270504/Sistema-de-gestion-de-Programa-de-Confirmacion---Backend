@@ -27,6 +27,8 @@ class TenantConfig
             'logo_url' => null,
             'color_primario' => '#2563eb',
         ],
+        // Etiquetas visibles para los roles internos. Vacío = se usa el nombre interno.
+        'roles_labels' => [],
     ];
 
     /**

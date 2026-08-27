@@ -34,10 +34,12 @@ class PassportAuthController extends Controller
 
         // Obtenemos el usuario autenticado y cargamos sus grupos + su parroquia
         $user = $request->user()->load(['grupos', 'parroquia']);
+        $esProveedor = $user->hasRole('proveedor');
 
         // El login es ruta pública: ResolveTenant corrió sin usuario, así que fijamos
-        // el contexto acá para poder devolver la configuración de la parroquia.
-        Tenant::set($user->parroquia_id);
+        // el contexto acá para poder devolver la configuración de la parroquia. El
+        // proveedor no está acotado a una parroquia.
+        $esProveedor ? Tenant::markPrivileged() : Tenant::set($user->parroquia_id);
 
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
@@ -52,7 +54,7 @@ class PassportAuthController extends Controller
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
                 'grupo_ids' => $user->grupos->pluck('id'),
-                'parroquia' => $user->parroquia ? [
+                'parroquia' => (! $esProveedor && $user->parroquia) ? [
                     'id' => $user->parroquia->id,
                     'slug' => $user->parroquia->slug,
                     'nombre' => $user->parroquia->nombre,
@@ -69,6 +71,7 @@ class PassportAuthController extends Controller
     {
         // 1. Cargamos explícitamente SOLO el 'id' y 'nombre' de la tabla grupos
         $user = $request->user()->load(['grupos:id,nombre', 'parroquia']);
+        $esProveedor = $user->hasRole('proveedor');
 
         return response()->json([
             'id' => $user->id,
@@ -77,7 +80,7 @@ class PassportAuthController extends Controller
             'dni' => $user->dni,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
-            'parroquia' => $user->parroquia ? [
+            'parroquia' => (! $esProveedor && $user->parroquia) ? [
                 'id' => $user->parroquia->id,
                 'slug' => $user->parroquia->slug,
                 'nombre' => $user->parroquia->nombre,

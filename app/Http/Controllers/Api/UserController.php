@@ -8,9 +8,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    /**
+     * Roles que el usuario actual puede asignar. Solo el proveedor puede otorgar
+     * el rol `proveedor`.
+     */
+    private function rolesAsignables(Request $request): array
+    {
+        $roles = Role::where('guard_name', 'api')->pluck('name');
+
+        if (! $request->user()->hasRole('proveedor')) {
+            $roles = $roles->reject(fn ($r) => $r === 'proveedor');
+        }
+
+        return $roles->values()->all();
+    }
+
     public function index()
     {
         return User::parroquiaActual()->with(['roles', 'grupos'])->latest()->get();
@@ -32,7 +48,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'fecha_nacimiento' => ['date', 'nullable'],
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', 'exists:roles,name'],
+            'roles.*' => ['string', Rule::in($this->rolesAsignables($request))],
             'grupo_ids' => ['nullable', 'array'],
             'grupo_ids.*' => ['exists:grupos,id'],
         ]);
@@ -90,7 +106,7 @@ class UserController extends Controller
             'fecha_nacimiento' => ['sometimes', 'nullable', 'date'],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'roles' => ['sometimes', 'array'], // 'sometimes' permite no enviar roles si no cambian
-            'roles.*' => ['string', 'exists:roles,name'],
+            'roles.*' => ['string', Rule::in($this->rolesAsignables($request))],
             'grupo_ids' => ['sometimes', 'nullable', 'array'],
             'grupo_ids.*' => ['exists:grupos,id'],
         ]);

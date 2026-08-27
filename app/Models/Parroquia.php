@@ -23,6 +23,11 @@ class Parroquia extends Model
         'activa' => 'boolean',
     ];
 
+    public function configuracion()
+    {
+        return $this->hasOne(ParroquiaConfiguracion::class);
+    }
+
     public function users()
     {
         return $this->hasMany(User::class);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Parroquia;
 use App\Tenancy\Facades\Tenant;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,8 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
  * solo desde el Bearer token (guard `api` de Passport), así que funciona aunque
  * el middleware `auth:api` de la ruta todavía no haya corrido.
  *
- * Si no hay usuario (login, forgot-password, endpoints públicos) el contexto
- * queda sin parroquia y el Global Scope no filtra.
+ * El rol `proveedor` (dueño de la plataforma) NO queda acotado a una parroquia:
+ * ve todo. Puede acotarse a una parroquia concreta para soporte pasando
+ * `?parroquia_id=` o la cabecera `X-Parroquia-Id`.
  */
 class ResolveTenant
 {
@@ -22,7 +24,23 @@ class ResolveTenant
     {
         $user = $request->user();
 
-        if ($user && $user->parroquia_id) {
+        if (! $user) {
+            return $next($request);
+        }
+
+        if ($user->hasRole('proveedor')) {
+            $actuarComo = $request->header('X-Parroquia-Id') ?? $request->query('parroquia_id');
+
+            if ($actuarComo && Parroquia::whereKey($actuarComo)->exists()) {
+                Tenant::set((int) $actuarComo);
+            } else {
+                Tenant::markPrivileged(); // sin filtro de parroquia
+            }
+
+            return $next($request);
+        }
+
+        if ($user->parroquia_id) {
             Tenant::set($user->parroquia_id);
         }
 
