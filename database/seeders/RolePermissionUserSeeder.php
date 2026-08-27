@@ -73,13 +73,13 @@ class RolePermissionUserSeeder extends Seeder
         // El proveedor (dueño de la plataforma) puede todo.
         $roleProveedor->syncPermissions(Permission::all());
 
-        // super-admin = admin de UNA parroquia: todo menos el catálogo global de
-        // roles/permisos (eso es del proveedor).
+        // super-admin = admin de UNA parroquia: todo menos administrar la plataforma
+        // y el catálogo de PERMISOS (eso es del proveedor; un permiso nuevo requiere
+        // código nuevo). Los ROLES sí los gestiona.
         $roleAdmin->syncPermissions(
             Permission::whereNotIn('name', [
                 'administrar plataforma',
-                'crear roles', 'editar roles', 'eliminar roles',
-                'ver permisos', 'crear permisos', 'editar permisos', 'eliminar permisos', 'asignar permisos',
+                'crear permisos', 'editar permisos', 'eliminar permisos',
             ])->pluck('name')
         );
         $roleCoordinador->syncPermissions(['ver dashboard',

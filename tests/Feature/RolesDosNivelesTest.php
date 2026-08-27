@@ -52,14 +52,16 @@ function adminDeParroquia(array $permisos = []): User
     return $u;
 }
 
-it('el super-admin no puede crear roles; el proveedor sí', function () {
+it('el super-admin gestiona roles pero NO el catálogo de permisos', function () {
     Permission::findOrCreate('administrar plataforma', 'api');
+    Permission::findOrCreate('crear roles', 'api');
 
-    Passport::actingAs(adminDeParroquia());
-    $this->postJson('/api/roles', ['name' => 'secretaria'])->assertForbidden();
+    Passport::actingAs(adminDeParroquia(['crear roles', 'ver roles']));
+    $this->postJson('/api/roles', ['name' => 'secretaria'])->assertCreated();
+    $this->postJson('/api/permissions', ['name' => 'inventar permiso'])->assertForbidden();
 
     Passport::actingAs(proveedor());
-    $this->postJson('/api/roles', ['name' => 'secretaria'])->assertCreated();
+    $this->postJson('/api/permissions', ['name' => 'inventar permiso'])->assertCreated();
 });
 
 it('un admin de parroquia no puede otorgar el rol proveedor', function () {

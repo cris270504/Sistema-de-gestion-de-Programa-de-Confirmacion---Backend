@@ -233,8 +233,9 @@ Hecho (2026-09-03, Parte 5 — roles de dos niveles):
   plataforma`. `Gate::before` en AppServiceProvider: el proveedor pasa cualquier
   chequeo de permiso. `ResolveTenant`: proveedor sin filtro de parroquia (puede
   acotarse con `?parroquia_id=` / `X-Parroquia-Id`).
-- `super-admin` = admin de UNA parroquia; pierde crear/editar/eliminar el catálogo
-  global de roles/permisos (esas rutas exigen `administrar plataforma`).
+- `super-admin` = admin de UNA parroquia. **Gestiona los roles** de su parroquia,
+  pero NO el catálogo de **permisos** (crear/editar/eliminar permisos → proveedor,
+  porque un permiso nuevo requiere código nuevo).
 - `UserController`: un admin de parroquia no puede otorgar el rol `proveedor`.
 - Etiquetas de rol por parroquia (`parroquia_configuraciones.roles_labels`, jsonb).
   El backend chequea el nombre interno; el frontend muestra la etiqueta.

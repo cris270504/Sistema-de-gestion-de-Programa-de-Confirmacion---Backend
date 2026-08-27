@@ -65,19 +65,21 @@ Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:eliminar usuarios');
 
     // --- ROLES ---
-    // Ver: el admin de parroquia lo necesita para asignar roles a sus usuarios.
-    // Crear/editar/eliminar el catálogo global de roles: solo el proveedor.
+    // El admin de parroquia gestiona sus roles. Editar el CATÁLOGO DE PERMISOS
+    // (abajo) sigue siendo del proveedor: un permiso nuevo requiere código nuevo.
     Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:ver roles');
     Route::get('/roles/{id}', [RoleController::class, 'show'])->middleware('permission:ver roles');
-    Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:administrar plataforma');
-    Route::put('/roles/{id}', [RoleController::class, 'update'])->middleware('permission:administrar plataforma');
-    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->middleware('permission:administrar plataforma');
+    Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:crear roles');
+    Route::put('/roles/{id}', [RoleController::class, 'update'])->middleware('permission:editar roles');
+    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->middleware('permission:eliminar roles');
 
-    // --- PERMISSIONS (catálogo global, solo proveedor) ---
+    // --- PERMISSIONS ---
+    // Ver la lista: cualquiera que gestione roles (para los checkboxes del editor).
+    // Crear/editar/eliminar el catálogo: solo el proveedor.
+    Route::get('/permissions', [PermissionController::class, 'index'])->middleware('permission:ver roles');
+    Route::get('/permissions/{id}', [PermissionController::class, 'show'])->middleware('permission:ver roles');
     Route::middleware('permission:administrar plataforma')->group(function () {
-        Route::get('/permissions', [PermissionController::class, 'index']);
         Route::post('/permissions', [PermissionController::class, 'store']);
-        Route::get('/permissions/{id}', [PermissionController::class, 'show']);
         Route::put('/permissions/{id}', [PermissionController::class, 'update']);
         Route::delete('/permissions/{id}', [PermissionController::class, 'destroy']);
     });
