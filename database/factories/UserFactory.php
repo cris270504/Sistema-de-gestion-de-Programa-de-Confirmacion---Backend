@@ -24,6 +24,10 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            // dni es char(8) NOT NULL UNIQUE (ver create_users_table) — sin esto, cualquier
+            // test que haga User::factory()->create() sin especificarlo falla con
+            // "NOT NULL constraint failed: users.dni".
+            'dni' => fake()->unique()->numerify('########'),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

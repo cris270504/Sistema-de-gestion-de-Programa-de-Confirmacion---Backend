@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | URL del frontend Vue (Vercel en producción, localhost en desarrollo). La usa
+    | AppServiceProvider::boot() para armar el link de "recuperar contraseña" que
+    | recibe el usuario por correo, apuntando a /reset-password/{token} del frontend
+    | en vez de a este backend.
+    |
+    */
+
+    'frontend_url' => env('APP_FRONTEND_URL', 'http://localhost:5173'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

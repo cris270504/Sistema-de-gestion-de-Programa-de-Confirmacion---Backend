@@ -16,8 +16,11 @@ return new class extends Migration
             $table->index('estado');
             $table->index('reunion_id');
 
-            // NUEVO: Índice compuesto para relaciones polimórficas
-            $table->index(['asistente_type', 'asistente_id']);
+            // OJO: NO agregamos index(['asistente_type', 'asistente_id']) — Blueprint::morphs()
+            // ya lo crea automáticamente al definir la columna en create_asistencia_table.
+            // Crearlo de nuevo aquí falla en una migración limpia ("index already exists"),
+            // como pasaba al correr los tests con sqlite en memoria (RefreshDatabase corre
+            // todas las migraciones desde cero, cosa que nunca se había probado antes).
 
             // NUEVO: Índice compuesto para consultas frecuentes
             $table->index(['reunion_id', 'estado']);
@@ -51,7 +54,6 @@ return new class extends Migration
     {
         // Reversión de los índices en caso de rollback
         Schema::table('asistencia', function (Blueprint $table) {
-            $table->dropIndex(['asistente_type', 'asistente_id']);
             $table->dropIndex(['estado']);
             $table->dropIndex(['reunion_id']);
         });

@@ -118,6 +118,7 @@ class DashboardController extends Controller
                     'id' => $c->id,
                     'nombre_completo' => "{$c->apellidos}, {$c->nombres}",
                     'grupo' => $c->grupo ? $c->grupo->nombre : 'Sin grupo',
+                    'grupo_id' => $c->grupo_id,
                     'total_faltas_injustificadas' => $faltasInjustificadas,
                     'total_faltas_justificadas' => $faltasJustificadas,
                     'total_tardanzas' => $tardanzas,

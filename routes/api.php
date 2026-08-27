@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\AsistenciaController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
+use App\Http\Controllers\Api\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\ConfirmandoController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FrontendErrorLogController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\GrupoDistributionController;
 use App\Http\Controllers\Api\JustificacionController;
@@ -30,14 +32,18 @@ Route::get('/health', function () {
 // Login público (rate limiting estricto para mitigar fuerza bruta)
 Route::post('/login', [PassportAuthController::class, 'login'])->middleware('throttle:5,1');
 
-// Recuperar contraseña (público: un usuario sin sesión debe poder solicitarlo)
+// Recuperar contraseña (público: un usuario sin sesión debe poder solicitarlo/completarlo)
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
+Route::post('/reset-password', [ResetPasswordController::class, 'reset']);
 
 // Rutas protegidas
 Route::middleware('auth:api')->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
     Route::get('/dashboard/metricas', [DashboardController::class, 'metricasYAlertas']);
+
+    // Log de errores JS del frontend (cualquier usuario autenticado puede reportar los suyos)
+    Route::post('/logs/frontend-error', [FrontendErrorLogController::class, 'store']);
 
     // --- IMPORTAR CONFIRMANDOS EXCEL
     Route::get('/confirmandos/exportar', [ConfirmandoController::class, 'exportarExcel']);

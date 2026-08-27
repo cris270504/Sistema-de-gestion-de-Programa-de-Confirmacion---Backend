@@ -11,26 +11,10 @@ return new class extends Migration
      */
 public function up()
 {
-    Schema::table('asistencia', function (Blueprint $table) {
-        // Asumo que el índice polimórfico ya existe (como vimos antes), 
-        // así que solo agregamos los compuestos de estado
-        $table->index(['reunion_id', 'estado']);  
-        $table->index(['asistente_type', 'asistente_id', 'estado']);  
-    });  
-  
-    Schema::table('confirmandos', function (Blueprint $table) {  
-        $table->index(['grupo_id', 'estado']);  
-    });  
-  
-    Schema::table('justificaciones', function (Blueprint $table) {  
-        $table->index(['asistencia_id', 'estado']);  
-    });  
-      
-    // NOMBRE CORREGIDO: reunions
-    Schema::table('reunions', function (Blueprint $table) {  
-        $table->index(['tipo', 'fecha']);  
-        $table->index('fecha');  
-    }); 
+    // Esta migración quedó 100% duplicada de 2026_07_08_002156_agregar_indices_de_rendimiento.php
+    // (los mismos 6 índices, creados dos veces). En producción ya corrió y quedó registrada, así
+    // que no se toca eso; para una base de datos limpia (ej. los tests con RefreshDatabase) la
+    // dejamos como no-op para no reventar con "index already exists".
 }
 
     /**

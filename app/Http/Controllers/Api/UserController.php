@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -34,14 +35,18 @@ class UserController extends Controller
             'grupo_ids.*' => ['exists:grupos,id'],
         ]);
 
-        // 6. Crear el usuario
+        // 6. Crear el usuario con una contraseña temporal generada (no una constante
+        // conocida): se devuelve una sola vez en la respuesta, para que el admin que
+        // crea la cuenta se la pase al usuario nuevo.
+        $tempPassword = Str::password(10);
+
         $user = User::create([
             'name' => $validatedData['name'],
             'dni' => $validatedData['dni'],
             'celular' => $validatedData['celular'],
             'email' => $validatedData['email'],
             'fecha_nacimiento' => $validatedData['fecha_nacimiento'],
-            'password' => Hash::make('123456789'),
+            'password' => Hash::make($tempPassword),
         ]);
 
         // 7. Sincronizar los roles
@@ -53,6 +58,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Usuario creado con éxito',
+            'temp_password' => $tempPassword,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

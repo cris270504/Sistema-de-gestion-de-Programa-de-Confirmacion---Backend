@@ -32,7 +32,15 @@ public function index(Request $request)
     if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
         $query->whereIn('grupo_id', $user->grupos->pluck('id'));
     }
-    return $query->latest('id')->get();
+
+    // Paginado con techo real (antes era ->get() sin límite). El default es alto a
+    // propósito: hoy el frontend sigue filtrando/paginando en cliente sobre esta lista
+    // completa (ListConfirmandos.vue, ~125 confirmandos). Si la cantidad crece mucho,
+    // hay que bajar este default y mover el filtrado a server-side (búsqueda con
+    // debounce + query params) en vez de seguir subiendo este número.
+    $perPage = (int) $request->query('per_page', 300);
+
+    return $query->latest('id')->paginate($perPage);
 }
 
     public function show($id)
