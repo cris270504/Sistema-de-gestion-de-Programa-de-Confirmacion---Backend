@@ -62,6 +62,7 @@ Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
     Route::post('/users', [UserController::class, 'store'])->middleware('permission:crear usuarios');
     Route::get('/users/{user}', [UserController::class, 'show'])->middleware('permission:ver usuarios');
     Route::put('/users/{user}', [UserController::class, 'update'])->middleware('permission:editar usuarios');
+    Route::patch('/users/{user}/estado', [UserController::class, 'estado'])->middleware('permission:editar usuarios');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:eliminar usuarios');
 
     // --- ROLES ---

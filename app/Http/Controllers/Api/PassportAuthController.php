@@ -34,6 +34,13 @@ class PassportAuthController extends Controller
 
         // Obtenemos el usuario autenticado y cargamos sus grupos + su parroquia
         $user = $request->user()->load(['grupos', 'parroquia']);
+
+        if ($user->activo === false) {
+            return response()->json([
+                'message' => 'Tu cuenta está desactivada. Contacta al administrador de tu parroquia.',
+            ], 403);
+        }
+
         $esProveedor = $user->hasRole('proveedor');
 
         // El login es ruta pública: ResolveTenant corrió sin usuario, así que fijamos

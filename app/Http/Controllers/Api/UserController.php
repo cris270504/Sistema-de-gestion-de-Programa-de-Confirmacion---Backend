@@ -153,15 +153,65 @@ class UserController extends Controller
                 'dni' => $user->dni,
                 'email' => $user->email,
                 'fecha_nacimiento' => $user->fecha_nacimiento,
+                'activo' => $user->activo,
                 'roles' => $user->roles->pluck('name'),
                 'grupos' => $user->grupos,
             ],
         ]);
     }
 
-    public function destroy($id)
+    /**
+     * Activa o desactiva la cuenta (baja lógica). Un usuario inactivo no puede
+     * iniciar sesión ni operar la API, pero conserva su historial.
+     */
+    public function estado(Request $request, $id)
+    {
+        $data = $request->validate([
+            'activo' => ['required', 'boolean'],
+        ]);
+
+        $user = User::parroquiaActual()->findOrFail($id);
+
+        if ($user->id === $request->user()->id) {
+            return response()->json([
+                'message' => 'No puedes cambiar el estado de tu propia cuenta.',
+            ], 422);
+        }
+
+        $user->activo = $data['activo'];
+        $user->save();
+
+        return response()->json([
+            'message' => $data['activo'] ? 'Usuario activado.' : 'Usuario desactivado.',
+            'user' => [
+                'id' => $user->id,
+                'activo' => $user->activo,
+            ],
+        ]);
+    }
+
+    public function destroy(Request $request, $id)
     {
         $user = User::parroquiaActual()->findOrFail($id);
+
+        if ($user->id === $request->user()->id) {
+            return response()->json([
+                'message' => 'No puedes eliminar tu propia cuenta.',
+            ], 422);
+        }
+
+        if ($user->grupos()->exists()) {
+            return response()->json([
+                'message' => 'Este usuario tiene grupos asignados. Reasígnalos antes de eliminarlo, o desactívalo.',
+            ], 422);
+        }
+
+        if ($user->asistencias()->exists()) {
+            return response()->json([
+                'message' => 'Este usuario tiene asistencias registradas. Desactívalo en lugar de eliminarlo para conservar el historial.',
+            ], 422);
+        }
+
         $user->delete();
 
         // Código 204: No Content es más apropiado para delete exitoso sin cuerpo
