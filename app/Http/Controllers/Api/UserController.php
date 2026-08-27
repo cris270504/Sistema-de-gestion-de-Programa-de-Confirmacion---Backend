@@ -25,7 +25,9 @@ class UserController extends Controller
     {
         $validatedData = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'dni' => ['required', 'string', 'max:8', 'unique:users,dni'],
+            // DNI opcional (no todas las parroquias/países lo usan). El email queda como
+            // identificador de acceso garantizado; el login acepta correo o DNI.
+            'dni' => ['nullable', 'string', 'max:20', 'unique:users,dni'],
             'celular' => ['nullable', 'string', 'max:9'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'fecha_nacimiento' => ['date', 'nullable'],
@@ -52,7 +54,7 @@ class UserController extends Controller
         // 7. Sincronizar los roles
         $user->syncRoles($validatedData['roles']);
 
-        if (!empty($validatedData['grupo_ids'])) {
+        if (! empty($validatedData['grupo_ids'])) {
             $user->grupos()->sync($validatedData['grupo_ids']);
         }
 
@@ -79,7 +81,7 @@ class UserController extends Controller
         // La validación aquí está bien, permite actualizar email y contraseña opcionalmente
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:100'],
-            'dni' => ['sometimes', 'required', 'string', 'max:8', Rule::unique('users')->ignore($user->id)],
+            'dni' => ['sometimes', 'nullable', 'string', 'max:20', Rule::unique('users')->ignore($user->id)],
             'celular' => ['sometimes', 'nullable', 'string', 'max:9'],
             'email' => [
                 'sometimes', 'required', 'email', 'max:150',
@@ -97,7 +99,7 @@ class UserController extends Controller
         if (isset($data['name'])) {
             $user->name = $data['name'];
         }
-        if (isset($data['dni'])) {
+        if (array_key_exists('dni', $data)) {
             $user->dni = $data['dni'];
         }
         if (isset($data['email'])) {
@@ -124,7 +126,7 @@ class UserController extends Controller
             $user->grupos()->sync($data['grupo_ids'] ?? []);
         }
 
-        $user->load('roles','grupos');
+        $user->load('roles', 'grupos');
 
         return response()->json([
             'message' => 'Usuario actualizado con éxito',
@@ -136,7 +138,7 @@ class UserController extends Controller
                 'email' => $user->email,
                 'fecha_nacimiento' => $user->fecha_nacimiento,
                 'roles' => $user->roles->pluck('name'),
-                'grupos' => $user->grupos
+                'grupos' => $user->grupos,
             ],
         ]);
     }

@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Estado de OpenSSL (no debe versionarse)
+.rnd

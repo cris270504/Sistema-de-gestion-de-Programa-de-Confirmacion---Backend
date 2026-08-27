@@ -32,9 +32,10 @@ Route::get('/health', function () {
 // Login público (rate limiting estricto para mitigar fuerza bruta)
 Route::post('/login', [PassportAuthController::class, 'login'])->middleware('throttle:5,1');
 
-// Recuperar contraseña (público: un usuario sin sesión debe poder solicitarlo/completarlo)
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
-Route::post('/reset-password', [ResetPasswordController::class, 'reset']);
+// Recuperar contraseña (público: un usuario sin sesión debe poder solicitarlo/completarlo).
+// Rate limiting para mitigar email-bombing y fuerza bruta sobre el token de reseteo.
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:5,10');
+Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->middleware('throttle:6,10');
 
 // Rutas protegidas
 Route::middleware('auth:api')->group(function () {
@@ -104,10 +105,13 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/reuniones/{id}/asistencias', [AsistenciaController::class, 'store'])->middleware('permission:guardar asistencias');
 
     // --- JUSTIFICACIONES ---
-    Route::prefix('justificaciones')->group(function () {
-        Route::get('/', [JustificacionController::class, 'index'])->middleware('permission:ver todas las asistencias');
-        Route::post('/acuerdo', [JustificacionController::class, 'registrarAcuerdo'])->middleware('permission:ver todas las asistencias');
-        Route::post('/completar', [JustificacionController::class, 'completarJustificacion'])->middleware('permission:ver todas las asistencias');
+    // 'ver asistencias' lo tienen catequista, coordinador y super-admin. El catequista
+    // solo ve/gestiona las justificaciones de los confirmandos de sus grupos (filtrado
+    // en el controlador y reforzado por RLS); coordinador/super-admin ven todas.
+    Route::prefix('justificaciones')->middleware('permission:ver asistencias')->group(function () {
+        Route::get('/', [JustificacionController::class, 'index']);
+        Route::post('/acuerdo', [JustificacionController::class, 'registrarAcuerdo']);
+        Route::post('/completar', [JustificacionController::class, 'completarJustificacion']);
         Route::put('/{id}/rechazar', [JustificacionController::class, 'rechazarAcuerdo']);
     });
 

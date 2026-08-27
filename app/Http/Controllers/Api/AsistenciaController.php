@@ -19,6 +19,10 @@ class AsistenciaController extends Controller
 
     public function store(Request $request, $reunionId)
     {
+        // La reunión debe existir: sin esto, un id inválido revienta con un 500 por
+        // violación de FK en vez de un 404 claro.
+        Reunion::findOrFail($reunionId);
+
         $data = $request->validate([
             'asistencias' => ['required', 'array'],
             'asistencias.*.asistente_id' => ['required', 'integer'],
@@ -78,7 +82,7 @@ class AsistenciaController extends Controller
                 }])
                 ->where('estado', '!=', 'retirado');
 
-            if (!$user->hasRole('coordinador') && !$user->can('ver todas las asistencias')) {
+            if (! $user->hasRole('coordinador') && ! $user->can('ver todas las asistencias')) {
                 $query->whereIn('grupo_id', $user->grupos->pluck('id'));
             }
 
@@ -95,8 +99,8 @@ class AsistenciaController extends Controller
             $personas = Apoderado::with(['confirmandos.grupo', 'asistencias' => function ($q) use ($reunionIds) {
                 $q->whereIn('reunion_id', $reunionIds);
             }])
-            ->orderBy('apellidos')
-            ->get();
+                ->orderBy('apellidos')
+                ->get();
         }
 
         return response()->json([

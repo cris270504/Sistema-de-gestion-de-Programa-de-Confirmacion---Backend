@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asistencia;
+use App\Models\Confirmando;
 use App\Models\Justificacion;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -12,9 +13,39 @@ use Illuminate\Support\Facades\DB;
 class JustificacionController extends Controller
 {
     /**
+     * ¿El usuario ve/gestiona TODAS las justificaciones, o solo las de sus grupos?
+     */
+    private function esPrivilegiado(Request $request): bool
+    {
+        return $request->user()->hasAnyRole(['coordinador', 'super-admin']);
+    }
+
+    /**
+     * Verifica que la asistencia pertenezca a un confirmando de los grupos del
+     * catequista actual. Aborta con 404 si no (mismo comportamiento que RLS en prod).
+     */
+    private function autorizarAsistencia(Request $request, int $asistenciaId): void
+    {
+        if ($this->esPrivilegiado($request)) {
+            return;
+        }
+
+        $gruposIds = $request->user()->grupos->pluck('id');
+
+        $permitida = Asistencia::where('id', $asistenciaId)
+            ->where('asistente_type', Confirmando::class)
+            ->whereHasMorph('asistente', [Confirmando::class], function ($q) use ($gruposIds) {
+                $q->whereIn('grupo_id', $gruposIds);
+            })
+            ->exists();
+
+        abort_unless($permitida, 404, 'Falta no encontrada.');
+    }
+
+    /**
      * Listar todos los confirmandos con faltas injustificadas o con acuerdos pendientes.
      */
-    public function index()
+    public function index(Request $request)
     {
         // 1. Calculamos la fecha límite dinámica (hace 21 días atrás a las 00:00:00)
         $hace21Dias = Carbon::now()->subDays(21)->startOfDay();
@@ -22,6 +53,13 @@ class JustificacionController extends Controller
 
         // Traemos todas las asistencias del tipo Confirmando que sean faltas
         $faltas = Asistencia::where('asistente_type', 'App\\Models\\Confirmando')
+            // El catequista solo ve las faltas de los confirmandos de sus grupos.
+            ->when(! $this->esPrivilegiado($request), function ($query) use ($request) {
+                $gruposIds = $request->user()->grupos->pluck('id');
+                $query->whereHasMorph('asistente', [Confirmando::class], function ($q) use ($gruposIds) {
+                    $q->whereIn('grupo_id', $gruposIds);
+                });
+            })
             ->where(function ($query) {
                 // Caso A: Es una falta injustificada pura
                 $query->where('estado', 'falta injustificada')
@@ -101,6 +139,8 @@ class JustificacionController extends Controller
             'fecha_acuerdo' => 'required|date',
         ]);
 
+        $this->autorizarAsistencia($request, (int) $request->asistencia_id);
+
         DB::beginTransaction();
         try {
             Justificacion::updateOrCreate(
@@ -136,6 +176,8 @@ class JustificacionController extends Controller
             'asistencia_id' => 'required|exists:asistencia,id',
         ]);
 
+        $this->autorizarAsistencia($request, (int) $request->asistencia_id);
+
         DB::beginTransaction();
         try {
             $justificacion = Justificacion::where('asistencia_id', $request->asistencia_id)->firstOrFail();
@@ -161,8 +203,10 @@ class JustificacionController extends Controller
         }
     }
 
-    public function rechazarAcuerdo($id)
+    public function rechazarAcuerdo(Request $request, $id)
     {
+        $this->autorizarAsistencia($request, (int) $id);
+
         DB::beginTransaction();
         try {
             $asistencia = Asistencia::findOrFail($id);
