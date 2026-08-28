@@ -8,32 +8,81 @@ use App\Models\Grupo;
 use App\Models\User;
 use App\Tenancy\Facades\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    /**
+     * Métricas numéricas básicas del panel (conteos + tasas). Es barato y lo usa
+     * tanto el dashboard como la respuesta del login (para pintar los números al
+     * instante, sin esperar el cálculo de alertas).
+     */
+    public static function metricasBasicas(): array
+    {
+        // 1 sola query para total + activos (antes eran 2 count() separados).
+        // CASE en vez de FILTER para que corra igual en Postgres (prod) y MariaDB (dev).
+        $row = Confirmando::selectRaw(
+            "COUNT(*) as total, SUM(CASE WHEN estado <> 'retirado' THEN 1 ELSE 0 END) as activos"
+        )->first();
+
+        $total = (int) ($row->total ?? 0);
+        $activos = (int) ($row->activos ?? 0);
+        $retirados = $total - $activos;
+
+        return [
+            'cant_users' => User::count(),
+            'cant_grupos' => Grupo::count(),
+            'cant_confirmandos' => $total,
+            'activos' => $activos,
+            'retirados' => $retirados,
+            'tasaRetencion' => $total > 0 ? round(($activos / $total) * 100, 1) : 0,
+            'tasaDesercion' => $total > 0 ? round(($retirados / $total) * 100, 1) : 0,
+        ];
+    }
+
+    /**
+     * Invalida el cache del dashboard de una parroquia (subiendo un contador de
+     * versión que forma parte de la clave). Se llama al guardar asistencias,
+     * justificaciones o cambios de estado de confirmandos.
+     */
+    public static function invalidate(?int $parroquiaId = null): void
+    {
+        $pid = $parroquiaId ?? Tenant::parroquiaId() ?? 'all';
+        $key = "dash:ver:$pid";
+        Cache::put($key, ((int) Cache::get($key, 1)) + 1, now()->addDays(30));
+    }
+
     public function metricasYAlertas(Request $request)
     {
         $user = $request->user();
         $esGestor = $user->can('ver usuarios'); // Definimos si es admin/coordinador
+        $gruposIds = $user->grupos->pluck('id')->sort()->values();
+
+        // Clave de cache: por parroquia + versión (se sube en cada mutación relevante)
+        // + alcance del usuario (un gestor ve todo; un catequista solo sus grupos).
+        $parroquiaId = Tenant::parroquiaId() ?? 'all';
+        $ver = (int) Cache::get("dash:ver:$parroquiaId", 1);
+        $scope = $esGestor ? 'gestor' : ('g'.$gruposIds->implode('-'));
+        $cacheKey = "dash:metricas:$parroquiaId:v$ver:$scope";
+
+        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($esGestor, $gruposIds) {
+            return $this->calcular($esGestor, $gruposIds->all());
+        });
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Cálculo pesado: recorre los confirmandos activos y sus asistencias para
+     * derivar el nivel de riesgo. Cacheado por metricasYAlertas().
+     */
+    private function calcular(bool $esGestor, array $gruposIds): array
+    {
         $umbrales = Tenant::config()['umbrales_alerta'];
 
-        // 1. MÉTRICAS BÁSICAS (Consultas ultra rápidas)
-        $totalConfirmandos = Confirmando::count();
-        $activos = Confirmando::where('estado', '!=', 'retirado')->count();
-        $retirados = $totalConfirmandos - $activos;
+        $metricas = self::metricasBasicas();
 
-        $metricas = [
-            'cant_users' => User::count(),
-            'cant_grupos' => Grupo::count(),
-            'cant_confirmandos' => $totalConfirmandos,
-            'activos' => $activos,
-            'retirados' => $retirados,
-            'tasaRetencion' => $totalConfirmandos > 0 ? round(($activos / $totalConfirmandos) * 100, 1) : 0,
-            'tasaDesercion' => $totalConfirmandos > 0 ? round(($retirados / $totalConfirmandos) * 100, 1) : 0,
-        ];
-
-        // 2. LÓGICA DE ALERTAS (Punto 3)
-        // Usamos Eager Loading para traer SOLO las columnas estrictamente necesarias
+        // Eager loading acotado a las columnas estrictamente necesarias.
         $query = Confirmando::with([
             'grupo:id,nombre',
             'apoderados:id,nombres,apellidos,celular',
@@ -44,13 +93,12 @@ class DashboardController extends Controller
 
         // SEGURIDAD: Si es catequista, filtramos desde la BD (Ahorra memoria)
         if (! $esGestor) {
-            $query->whereIn('grupo_id', $user->grupos->pluck('id'));
+            $query->whereIn('grupo_id', $gruposIds);
         }
 
         $confirmandos = $query->get();
         $alertas = collect();
 
-        // Trasladamos tu lógica iterativa de JS a PHP
         foreach ($confirmandos as $c) {
             // Ordenamos las asistencias por fecha
             $asistenciasOrdenadas = $c->asistencias->sortBy(function ($a) {
@@ -134,9 +182,9 @@ class DashboardController extends Controller
             }
         }
 
-        return response()->json([
+        return [
             'metricas' => $metricas,
-            'alertas' => $alertas->values(), // Formatea a array limpio
-        ]);
+            'alertas' => $alertas->values()->all(),
+        ];
     }
 }

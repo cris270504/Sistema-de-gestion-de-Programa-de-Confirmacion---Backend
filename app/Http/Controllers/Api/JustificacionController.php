@@ -156,6 +156,8 @@ class JustificacionController extends Controller
 
             DB::commit();
 
+            DashboardController::invalidate();
+
             return response()->json([
                 'status' => true,
                 'message' => 'Acuerdo registrado. Estado cambiado a Pendiente.',
@@ -191,6 +193,8 @@ class JustificacionController extends Controller
             ]);
 
             DB::commit();
+
+            DashboardController::invalidate();
 
             return response()->json([
                 'status' => true,
@@ -234,6 +238,8 @@ class JustificacionController extends Controller
             ]);
 
             DB::commit();
+
+            DashboardController::invalidate();
 
             return response()->json([
                 'status' => true,

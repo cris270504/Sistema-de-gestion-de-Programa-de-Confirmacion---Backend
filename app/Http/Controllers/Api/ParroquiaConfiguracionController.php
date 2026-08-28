@@ -60,6 +60,10 @@ class ParroquiaConfiguracionController extends Controller
 
         Tenant::forgetConfig($parroquiaId);
 
+        // Los umbrales de alerta viven en esta config: al cambiarlos, el dashboard
+        // cacheado queda obsoleto.
+        DashboardController::invalidate($parroquiaId);
+
         return response()->json([
             'message' => 'Configuración actualizada',
             'configuracion' => Tenant::config(),

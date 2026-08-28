@@ -92,16 +92,23 @@ class GrupoDistributionController extends Controller
 
             // 4. Actualizaciones Masivas
             $totalAsignados = 0;
+            $asignaciones = []; // confirmando_id => grupo_id (para que el front parche su lista sin recargar)
             foreach ($gruposCreados as $data) {
                 if (! empty($data['ids_asignar'])) {
                     Confirmando::whereIn('id', $data['ids_asignar'])
                         ->update(['grupo_id' => $data['model']->id]);
+
+                    foreach ($data['ids_asignar'] as $confirmandoId) {
+                        $asignaciones[$confirmandoId] = $data['model']->id;
+                    }
 
                     $totalAsignados += count($data['ids_asignar']);
                 }
             }
 
             DB::commit();
+
+            DashboardController::invalidate();
 
             // 5. CONSTRUCCIÓN DEL MENSAJE DINÁMICO
             $mensaje = '';
@@ -122,6 +129,10 @@ class GrupoDistributionController extends Controller
                 'message' => $mensaje,
                 'total_asignados' => $totalAsignados,
                 'grupos_nuevos' => $contadorNuevos,
+                // Para que el frontend actualice su estado local sin re-descargar toda
+                // la lista de confirmandos ni la de grupos.
+                'asignaciones' => $asignaciones,
+                'grupos' => Grupo::where('periodo', $periodo)->get(),
             ]);
 
         } catch (\Exception $e) {

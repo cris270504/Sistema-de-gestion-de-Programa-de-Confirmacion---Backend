@@ -51,8 +51,14 @@ class PassportAuthController extends Controller
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
 
+        // Métricas básicas (conteos) en la respuesta del login: el dashboard pinta los
+        // números al instante en vez de esperar la llamada a /dashboard/metricas, que
+        // además calcula alertas. El proveedor no tiene parroquia => sin métricas.
+        $metricas = $esProveedor ? null : DashboardController::metricasBasicas();
+
         return response()->json([
             'token' => $token,
+            'metricas' => $metricas,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

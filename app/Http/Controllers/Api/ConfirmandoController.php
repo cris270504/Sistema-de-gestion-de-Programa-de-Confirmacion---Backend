@@ -19,10 +19,12 @@ class ConfirmandoController extends Controller
     {
         $user = $request->user();
 
+        // Los apoderados NO se cargan en el listado: solo se ven al abrir el modal de
+        // apoderados de una fila. Se piden on-demand con GET /confirmandos/{id} (show).
+        // Quitarlos de acá recorta el payload (una relación N:M por fila menos).
         $query = Confirmando::with([
             'grupo:id,nombre,color,procedencia',
             'sacramentos:id,nombre',
-            'apoderados:id,nombres,apellidos,celular',
         ])->select(
             'id', 'nombres', 'apellidos', 'fecha_nacimiento',
             'genero', 'celular', 'estado', 'grupo_id'
@@ -39,7 +41,21 @@ class ConfirmandoController extends Controller
         // debounce + query params) en vez de seguir subiendo este número.
         $perPage = (int) $request->query('per_page', 300);
 
-        return $query->latest('id')->paginate($perPage);
+        $data = $query->latest('id')->paginate($perPage);
+
+        // Cache condicional: el navegador guarda la respuesta y revalida con
+        // If-None-Match. Si nada cambió, el server responde 304 (sin cuerpo) y el
+        // cliente no vuelve a descargar ni a parsear ~cientos de kB. Clave para los
+        // catequistas en datos móviles que entran y salen de esta pantalla.
+        $response = response()->json($data);
+        $response->headers->set('Cache-Control', 'private, max-age=0, must-revalidate');
+        $response->setEtag(md5($response->getContent()));
+
+        // isNotModified() muta la respuesta a 304 (cuerpo vacío) si el ETag coincide
+        // con el If-None-Match del cliente; si no, la deja intacta.
+        $response->isNotModified($request);
+
+        return $response;
     }
 
     public function show($id)
@@ -92,6 +108,8 @@ class ConfirmandoController extends Controller
         }
 
         $confirmando->load('grupo', 'sacramentos', 'apoderados');
+
+        DashboardController::invalidate();
 
         return response()->json([
             'message' => 'Confirmando creado y ruta sacramental asignada',
@@ -161,6 +179,8 @@ class ConfirmandoController extends Controller
 
         $confirmando->load('grupo', 'sacramentos', 'apoderados');
 
+        DashboardController::invalidate();
+
         return response()->json([
             'message' => 'Confirmando actualizado correctamente',
             'confirmando' => $confirmando,
@@ -171,6 +191,8 @@ class ConfirmandoController extends Controller
     {
         $confirmando = Confirmando::findOrFail($id);
         $confirmando->delete();
+
+        DashboardController::invalidate();
 
         return response()->json(null, 204);
     }
@@ -490,6 +512,8 @@ class ConfirmandoController extends Controller
         $confirmando->update([
             'estado' => 'retirado',
         ]);
+
+        DashboardController::invalidate();
 
         return response()->json([
             'status' => true,

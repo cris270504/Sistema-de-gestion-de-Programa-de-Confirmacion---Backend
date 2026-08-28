@@ -31,23 +31,47 @@ class AsistenciaController extends Controller
             'asistencias.*.nota' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Antes: un updateOrCreate() por fila => 2 queries por persona (SELECT + UPSERT).
+        // Es el momento en que el catequista espera con el celular al terminar la reunión.
+        // Ahora: 1 SELECT para todas + INSERT masivo de las nuevas + UPDATE de las que
+        // ya existían. En la primera toma de asistencia de una reunión (todo altas) son
+        // solo 2 queries en total. No se usa Asistencia::upsert() porque la tabla no
+        // tiene índice único en (reunion_id, asistente_id, asistente_type).
+        $existentes = Asistencia::where('reunion_id', $reunionId)
+            ->get(['id', 'asistente_id', 'asistente_type'])
+            ->keyBy(fn ($a) => $a->asistente_type.'|'.$a->asistente_id);
+
+        $nuevas = [];
+        $ahora = now();
+
         foreach ($data['asistencias'] as $registro) {
-            Asistencia::updateOrCreate(
-                [
-                    // Condiciones de búsqueda (WHERE)
+            $clave = $registro['asistente_type'].'|'.$registro['asistente_id'];
+            $existente = $existentes->get($clave);
+
+            if ($existente) {
+                Asistencia::where('id', $existente->id)->update([
+                    'estado' => $registro['estado'],
+                    'nota' => $registro['nota'] ?? null,
+                ]);
+            } else {
+                $nuevas[] = [
                     'reunion_id' => $reunionId,
                     'asistente_id' => $registro['asistente_id'],
                     'asistente_type' => $registro['asistente_type'],
-                ],
-                [
-                    // Valores a actualizar o crear (SET)
                     'estado' => $registro['estado'],
-
-                    // 2. AGREGADO: Mapeo de 'observacion' (frontend) a 'nota' (backend)
                     'nota' => $registro['nota'] ?? null,
-                ]
-            );
+                    'created_at' => $ahora,
+                    'updated_at' => $ahora,
+                ];
+            }
         }
+
+        if (! empty($nuevas)) {
+            Asistencia::insert($nuevas);
+        }
+
+        // Las asistencias alimentan las alertas del dashboard: refrescamos su cache.
+        DashboardController::invalidate();
 
         return response()->json(['message' => 'Asistencia guardada correctamente']);
     }
