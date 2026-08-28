@@ -110,6 +110,36 @@ it('una parroquia desactivada bloquea a sus usuarios pero no al proveedor', func
     $this->getJson('/api/get-user')->assertOk();
 });
 
+it('el super-admin NO puede otorgar a un rol un permiso que él no tiene', function () {
+    Permission::findOrCreate('administrar plataforma', 'api');
+
+    Passport::actingAs(adminDeParroquia(['crear roles', 'editar roles', 'ver roles']));
+
+    // Escalada clásica: meter 'administrar plataforma' en un rol para luego auto-asignárselo.
+    $this->postJson('/api/roles', [
+        'name' => 'rol-escalado',
+        'permissions' => ['administrar plataforma'],
+    ])->assertStatus(422);
+
+    // El proveedor sí puede (los tiene todos).
+    Passport::actingAs(proveedor());
+    $this->postJson('/api/roles', [
+        'name' => 'rol-plataforma',
+        'permissions' => ['administrar plataforma'],
+    ])->assertCreated();
+});
+
+it('el super-admin NO puede editar ni borrar roles del sistema', function () {
+    $coordinador = Role::findOrCreate('coordinador', 'api');
+
+    Passport::actingAs(adminDeParroquia(['editar roles', 'eliminar roles', 'ver roles']));
+
+    $this->putJson("/api/roles/{$coordinador->id}", ['name' => 'coordinador-hackeado'])->assertForbidden();
+    $this->deleteJson("/api/roles/{$coordinador->id}")->assertForbidden();
+
+    expect(Role::find($coordinador->id)->name)->toBe('coordinador');
+});
+
 it('guarda etiquetas de rol en la configuración', function () {
     Permission::findOrCreate('administrar parroquia', 'api');
     Passport::actingAs(catequistaCon(['administrar parroquia']));

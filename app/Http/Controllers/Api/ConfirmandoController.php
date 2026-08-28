@@ -8,6 +8,7 @@ use App\Http\Requests\ImportarConfirmandosRequest;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Sacramento;
+use App\Tenancy\ParroquiaRule;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -74,8 +75,8 @@ class ConfirmandoController extends Controller
             'celular' => ['nullable', 'string', 'max:9'],
             'genero' => ['nullable', 'string', 'max:1'],
             'fecha_nacimiento' => ['nullable', 'date', 'before_or_equal:'.$maxDate],
-            'grupo_id' => ['nullable', 'exists:grupos,id'],
-            'sacramento_faltante_id' => ['nullable', 'exists:sacramentos,id'],
+            'grupo_id' => ['nullable', ParroquiaRule::exists('grupos')],
+            'sacramento_faltante_id' => ['nullable', ParroquiaRule::exists('sacramentos')],
             'estado' => ['nullable', 'in:en_preparacion,retirado,confirmado'],
         ]);
 
@@ -84,7 +85,7 @@ class ConfirmandoController extends Controller
             'apoderados' => ['nullable', 'array'],
             'apoderados.*.nombres' => ['required_with:apoderados', 'string'],
             'apoderados.*.apellidos' => ['required_with:apoderados', 'string'],
-            'apoderados.*.tipo_apoderado_id' => ['required_with:apoderados', 'exists:tipo_apoderados,id'],
+            'apoderados.*.tipo_apoderado_id' => ['required_with:apoderados', ParroquiaRule::exists('tipo_apoderados')],
             'apoderados.*.celular' => ['nullable', 'string', 'max:9'],
         ]);
 
@@ -129,8 +130,8 @@ class ConfirmandoController extends Controller
             'celular' => ['sometimes', 'nullable', 'string', 'max:9'],
             'genero' => ['sometimes', 'nullable', 'string', 'max:1'],
             'fecha_nacimiento' => ['sometimes', 'nullable', 'date', 'before_or_equal:'.$maxDate],
-            'grupo_id' => ['sometimes', 'nullable', 'exists:grupos,id'],
-            'sacramento_faltante_id' => ['sometimes', 'nullable', 'exists:sacramentos,id'],
+            'grupo_id' => ['sometimes', 'nullable', ParroquiaRule::exists('grupos')],
+            'sacramento_faltante_id' => ['sometimes', 'nullable', ParroquiaRule::exists('sacramentos')],
             'estado' => ['sometimes', 'required', 'in:en_preparacion,retirado,confirmado'],
 
             'requisitos_actualizar' => ['nullable', 'array'],
@@ -141,7 +142,7 @@ class ConfirmandoController extends Controller
             'apoderados' => ['nullable', 'array'],
             'apoderados.*.nombres' => ['required_with:apoderados', 'string'],
             'apoderados.*.apellidos' => ['required_with:apoderados', 'string'],
-            'apoderados.*.tipo_apoderado_id' => ['required_with:apoderados', 'exists:tipo_apoderados,id'],
+            'apoderados.*.tipo_apoderado_id' => ['required_with:apoderados', ParroquiaRule::exists('tipo_apoderados')],
             'apoderados.*.celular' => ['nullable', 'string', 'max:9'],
         ]);
 

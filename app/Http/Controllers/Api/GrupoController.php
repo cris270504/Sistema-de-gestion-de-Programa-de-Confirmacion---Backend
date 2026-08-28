@@ -7,6 +7,7 @@ use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Grupo;
 use App\Tenancy\Facades\Tenant;
+use App\Tenancy\ParroquiaRule;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -133,7 +134,7 @@ class GrupoController extends Controller
     {
         $data = $request->validate([
             'users' => ['nullable', 'array'],
-            'users.*' => ['integer', 'exists:users,id'],
+            'users.*' => ['integer', ParroquiaRule::exists('users')],
         ]);
 
         $newIds = $data['users'] ?? [];
@@ -162,7 +163,7 @@ class GrupoController extends Controller
     {
         $data = $request->validate([
             'confirmandos' => ['nullable', 'array'],
-            'confirmandos.*' => ['integer', 'exists:confirmandos,id'],
+            'confirmandos.*' => ['integer', ParroquiaRule::exists('confirmandos')],
         ]);
 
         $newIds = $data['confirmandos'] ?? [];

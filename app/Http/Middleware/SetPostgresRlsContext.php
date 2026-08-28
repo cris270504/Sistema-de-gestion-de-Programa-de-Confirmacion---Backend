@@ -27,23 +27,22 @@ class SetPostgresRlsContext
         if (DB::connection()->getDriverName() === 'pgsql') {
             $user = $request->user();
 
-            DB::statement('SELECT set_config(?, ?, false)', [
-                'app.current_user_id',
-                $user ? (string) $user->id : '',
-            ]);
+            $privilegiado = ($user && $user->hasAnyRole(['coordinador', 'super-admin', 'proveedor']))
+                || Tenant::isPrivileged();
 
-            DB::statement('SELECT set_config(?, ?, false)', [
-                'app.current_user_privileged',
-                ($user && $user->hasAnyRole(['coordinador', 'super-admin', 'proveedor'])) || Tenant::isPrivileged()
-                    ? 'true' : 'false',
-            ]);
-
-            // Parroquia del contexto. Vacío = sin filtro (login, público, proveedor
-            // sin acotar).
-            DB::statement('SELECT set_config(?, ?, false)', [
-                'app.current_parroquia_id',
-                Tenant::parroquiaId() ? (string) Tenant::parroquiaId() : '',
-            ]);
+            // Los 3 set_config en UNA sola sentencia: antes eran 3 round-trips a
+            // Postgres por cada request (latencia pura Render -> Supabase).
+            // set_config(..., false) = ámbito de SESIÓN (ver nota del encabezado).
+            DB::statement(
+                'SELECT set_config(?, ?, false), set_config(?, ?, false), set_config(?, ?, false)',
+                [
+                    'app.current_user_id', $user ? (string) $user->id : '',
+                    'app.current_user_privileged', $privilegiado ? 'true' : 'false',
+                    // Parroquia del contexto. Vacío = sin filtro (login, público,
+                    // proveedor sin acotar).
+                    'app.current_parroquia_id', Tenant::parroquiaId() ? (string) Tenant::parroquiaId() : '',
+                ]
+            );
         }
 
         return $next($request);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Justificacion;
 use App\Models\User;
+use App\Tenancy\ParroquiaRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -52,7 +53,7 @@ class UserController extends Controller
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['string', Rule::in($this->rolesAsignables($request))],
             'grupo_ids' => ['nullable', 'array'],
-            'grupo_ids.*' => ['exists:grupos,id'],
+            'grupo_ids.*' => [ParroquiaRule::exists('grupos')],
         ]);
 
         // 6. Crear el usuario con una contraseña temporal generada (no una constante
