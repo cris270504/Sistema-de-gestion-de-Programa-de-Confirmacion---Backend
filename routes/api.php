@@ -50,8 +50,9 @@ Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
     Route::get('/parroquia/configuracion', [ParroquiaConfiguracionController::class, 'show']);
     Route::put('/parroquia/configuracion', [ParroquiaConfiguracionController::class, 'update'])->middleware('permission:administrar parroquia');
 
-    // Log de errores JS del frontend (cualquier usuario autenticado puede reportar los suyos)
-    Route::post('/logs/frontend-error', [FrontendErrorLogController::class, 'store']);
+    // Log de errores JS del frontend (cualquier usuario autenticado puede reportar los suyos).
+    // Throttle: sin esto un usuario autenticado puede inundar la tabla frontend_error_logs.
+    Route::post('/logs/frontend-error', [FrontendErrorLogController::class, 'store'])->middleware('throttle:20,1');
 
     // --- IMPORTAR CONFIRMANDOS EXCEL
     Route::get('/confirmandos/exportar', [ConfirmandoController::class, 'exportarExcel']);

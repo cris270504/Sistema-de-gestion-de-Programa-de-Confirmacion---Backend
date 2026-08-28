@@ -50,3 +50,23 @@ it('rechaza credenciales inválidas con 401', function () {
         'password' => 'incorrecta',
     ])->assertStatus(401);
 });
+
+it('revoca los tokens anteriores en cada login (una sola sesión activa)', function () {
+    $creds = ['login' => 'catequista@parroquia.com', 'password' => 'clave-segura'];
+
+    $this->postJson('/api/login', $creds)->assertOk();
+    $this->postJson('/api/login', $creds)->assertOk();
+
+    expect($this->user->tokens()->where('revoked', false)->count())->toBe(1);
+});
+
+it('el token de acceso expira (no vive un año)', function () {
+    $this->postJson('/api/login', [
+        'login' => 'catequista@parroquia.com', 'password' => 'clave-segura',
+    ])->assertOk();
+
+    $expira = $this->user->tokens()->latest('created_at')->first()->expires_at;
+
+    expect($expira)->not->toBeNull();
+    expect($expira->lessThan(now()->addDays(60)))->toBeTrue();
+});

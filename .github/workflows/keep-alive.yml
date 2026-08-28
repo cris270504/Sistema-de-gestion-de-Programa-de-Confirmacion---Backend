@@ -1,0 +1,33 @@
+# Mantiene despierto el backend en Render (plan free: se duerme a los 15 min sin
+# tráfico y la primera request tarda 30-60 s). Pega a /api/health, que no toca BD.
+#
+# ⚠️ CUOTA DE GITHUB ACTIONS: en repo PRIVADO el plan free da 2000 min/mes y cada
+# ejecución factura 1 min mínimo. Cada 14 min = ~3100 ejecuciones/mes -> te pasás.
+# Opciones:
+#   - Hacer este repo PÚBLICO (Actions es ilimitado; el repo no tiene secretos en
+#     código, .env está en .gitignore).
+#   - O usar un pinger externo gratuito (cron-job.org / UptimeRobot) apuntando a
+#     https://sistema-de-gestion-de-programa-de.onrender.com/api/health cada 14 min
+#     y borrar este archivo.
+#
+# El schedule de GitHub puede retrasarse varios minutos bajo carga; 14 min deja
+# margen frente al límite de 15.
+
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /api/health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 15 \
+            https://sistema-de-gestion-de-programa-de.onrender.com/api/health)
+          echo "HTTP $code"
+          test "$code" = "200"

@@ -10,9 +10,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql pgsql zip
+    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql pgsql zip opcache
 
-RUN a2enmod rewrite
+# OPcache (tiempo de PHP por request) + gzip de las respuestas JSON (red).
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/deflate.conf /etc/apache2/conf-available/deflate.conf
+RUN a2enmod rewrite deflate headers && a2enconf deflate
 
 WORKDIR /var/www/html
 

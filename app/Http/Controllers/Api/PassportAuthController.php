@@ -48,6 +48,12 @@ class PassportAuthController extends Controller
         // proveedor no está acotado a una parroquia.
         $esProveedor ? Tenant::markPrivileged() : Tenant::set($user->parroquia_id);
 
+        // Revocamos los tokens anteriores: sin esto se acumulan uno por login en
+        // oauth_access_tokens (cada uno válido hasta su expiración). Efecto: una
+        // sola sesión activa por usuario, consistente con logout() que ya los borra
+        // todos.
+        $user->tokens()->delete();
+
         // Creamos el token
         $token = $user->createToken('API Token')->accessToken;
 

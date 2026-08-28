@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Tenancy\TenantContext;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,14 @@ class AppServiceProvider extends ServiceProvider
         // El proveedor (dueño de la plataforma) tiene acceso a todo: cualquier
         // chequeo de permiso (incluido el middleware `permission:`) pasa para él.
         Gate::before(fn ($user) => $user->hasRole('proveedor') ? true : null);
+
+        // Expiración de tokens Passport. Sin esto, el default deja tokens válidos
+        // ~1 año; combinado con el guardado en localStorage del frontend, un token
+        // robado (XSS) serviría por un año. El login usa createToken() = personal
+        // access token, así que ese es el que importa.
+        Passport::personalAccessTokensExpireIn(Carbon::now()->addDays(30));
+        Passport::tokensExpireIn(Carbon::now()->addDays(30));
+        Passport::refreshTokensExpireIn(Carbon::now()->addDays(45));
 
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
             // Cambia esta URL por la URL real de tu Frontend en Vue
