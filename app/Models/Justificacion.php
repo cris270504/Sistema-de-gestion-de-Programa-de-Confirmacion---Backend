@@ -16,7 +16,7 @@ class Justificacion extends Model
         'motivo',
         'descripcion',
         'estado',
-        'fecha_acuerdo'
+        'fecha_acuerdo',
     ];
 
     public function asistencia()

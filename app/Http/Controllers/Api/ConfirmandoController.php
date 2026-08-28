@@ -8,10 +8,12 @@ use App\Http\Requests\ImportarConfirmandosRequest;
 use App\Models\Apoderado;
 use App\Models\Confirmando;
 use App\Models\Sacramento;
+use App\Tenancy\Facades\Tenant;
 use App\Tenancy\ParroquiaRule;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ConfirmandoController extends Controller
@@ -310,20 +312,34 @@ class ConfirmandoController extends Controller
         $confirmando->apoderados()->sync($idsParaSincronizar);
     }
 
-    // @TODO: Verificar si el frontend requiere este endpoint (no tiene ruta registrada
-    // en routes/api.php actualmente). Se deja comentado para no perder la lógica.
-    // public function buscarApoderados(Request $request)
-    // {
-    //     $query = $request->get('q');
-    //     if (strlen($query) < 3) {
-    //         return response()->json([]);
-    //     }
-    //
-    //     return Apoderado::where('apellidos', 'LIKE', "%{$query}%")
-    //         ->orWhere('nombres', 'LIKE', "%{$query}%")
-    //         ->limit(5)
-    //         ->get();
-    // }
+    /**
+     * Autocompletado de apoderados existentes (buscador del modal de confirmando).
+     * Sin esto, el usuario re-escribe datos que ya existen y se crean duplicados.
+     * `Apoderado` no tiene columna parroquia_id directa pero SÍ RLS (alcance por
+     * grupo del catequista / privilegiado); acá además exigimos que el apoderado
+     * esté ligado a algún confirmando (evita listar apoderados sueltos).
+     */
+    public function buscarApoderados(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($q) < 3) {
+            return response()->json([]);
+        }
+
+        $termino = '%'.mb_strtolower($q).'%';
+
+        return Apoderado::query()
+            ->whereHas('confirmandos')
+            ->where(function ($query) use ($termino) {
+                // LOWER(...) LIKE en vez de ILIKE: portable a pgsql (prod) y sqlite (tests).
+                $query->whereRaw('LOWER(apellidos) LIKE ?', [$termino])
+                    ->orWhereRaw('LOWER(nombres) LIKE ?', [$termino]);
+            })
+            ->orderBy('apellidos')
+            ->limit(8)
+            ->get(['id', 'nombres', 'apellidos', 'celular']);
+    }
 
     public function importar(ImportarConfirmandosRequest $request)
     {
@@ -332,7 +348,9 @@ class ConfirmandoController extends Controller
 
             $erroresFatales = [];
             $advertencias = [];
-            $importados = 0;
+            $filasParaInsertar = [];
+            $ahora = now();
+            $parroquiaId = Tenant::parroquiaId();
 
             foreach ($data as $index => $row) {
                 if ($index === 0 && strtolower(trim($row[0] ?? '')) === 'nombres') {
@@ -390,20 +408,35 @@ class ConfirmandoController extends Controller
                     $celular = null;
                 }
 
-                // 4. Guardar en BD
-                Confirmando::create([
+                // 4. Acumular para el insert masivo (una sola query, dentro de una
+                // transacción). Antes era un Confirmando::create() por fila (N queries,
+                // sin transacción -> import a medias si algo fallaba).
+                $filasParaInsertar[] = [
                     'nombres' => $nombres,
                     'apellidos' => $apellidos,
                     'celular' => $celular,
-                    // IMPORTANTE: Tu BD seguramente pide fecha de nacimiento (según tu método store).
-                    // Ponemos una por defecto para que no falle la BD. Luego la editan.
                     'fecha_nacimiento' => null,
-                ]);
-
-                $importados++;
+                    'estado' => 'en_preparacion',
+                    // Confirmando::insert() NO dispara el hook `creating` de
+                    // BelongsToParroquia, así que fijamos parroquia_id a mano
+                    // (si es null, la RLS rechazaría el insert).
+                    'parroquia_id' => $parroquiaId,
+                    'created_at' => $ahora,
+                    'updated_at' => $ahora,
+                ];
             }
 
-            // Si hubo errores que impidieron guardar ALGUNAS filas (ej: sin nombre)
+            $importados = count($filasParaInsertar);
+
+            DB::transaction(function () use ($filasParaInsertar) {
+                foreach (array_chunk($filasParaInsertar, 500) as $lote) {
+                    Confirmando::insert($lote);
+                }
+            });
+
+            DashboardController::invalidate();
+
+            // Si hubo filas omitidas (ej: sin nombre)
             if (count($erroresFatales) > 0) {
                 return response()->json([
                     'message' => "Se importaron $importados confirmandos. Hubo filas omitidas.",

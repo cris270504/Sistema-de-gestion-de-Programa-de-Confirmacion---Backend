@@ -34,4 +34,11 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+# Arranque:
+#  - config:cache / event:cache: se hacen ACÁ (no en build) porque necesitan las
+#    variables de entorno reales, que Render inyecta recién al correr el contenedor.
+#    route:cache NO se puede (hay closures en routes/*.php).
+#  - migraciones bajo demanda: poné RUN_MIGRATIONS=true en las env de Render para
+#    UN deploy, revisá el log, y volvelo a false. (Útil en el plan free, que no
+#    tiene shell.)
+CMD ["sh", "-c", "if [ \"$RUN_MIGRATIONS\" = \"true\" ]; then echo '==> php artisan migrate --force'; php artisan migrate --force || exit 1; fi; php artisan config:cache || echo 'WARN: config:cache falló, sigo sin cache'; php artisan event:cache || true; chown -R www-data:www-data storage bootstrap/cache; exec apache2-foreground"]

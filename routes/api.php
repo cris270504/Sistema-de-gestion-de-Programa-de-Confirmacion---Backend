@@ -94,6 +94,8 @@ Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
     });
 
     // --- CONFIRMANDOS ---
+    // OJO: las rutas literales van ANTES de /confirmandos/{id} para que {id} no las capture.
+    Route::get('/confirmandos/buscar-apoderados', [ConfirmandoController::class, 'buscarApoderados'])->middleware('permission:ver confirmandos');
     Route::get('/confirmandos/{id}/perfil', [ConfirmandoController::class, 'obtenerPerfilCompleto'])->middleware('permission:ver confirmandos');
     Route::put('/confirmandos/{id}/retirar', [ConfirmandoController::class, 'retirar'])->middleware('permission:eliminar confirmandos');
     Route::get('/confirmandos', [ConfirmandoController::class, 'index'])->middleware('permission:ver confirmandos');

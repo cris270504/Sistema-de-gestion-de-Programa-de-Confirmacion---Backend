@@ -14,9 +14,15 @@ class ImportarConfirmandosRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // "file" en vez de "mimes": el mime type de .xlsx varía entre sistemas
-            // operativos y a veces Laravel no lo reconoce correctamente.
-            'archivo' => ['required', 'file', 'max:5000'],
+            // `extensions` valida por extensión declarada (no por mime, que varía
+            // entre SO). `mimetypes` como segunda barrera con los tipos reales de
+            // xlsx/xls/csv. max:5000 = 5 MB. Sin esto, cualquier archivo llegaba
+            // al parser de PhpSpreadsheet (riesgo de zip-bomb / consumo de memoria).
+            'archivo' => [
+                'required', 'file', 'max:5000',
+                'extensions:xlsx,xls,csv',
+                'mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain,application/csv',
+            ],
         ];
     }
 }

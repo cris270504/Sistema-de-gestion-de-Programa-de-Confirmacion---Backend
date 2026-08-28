@@ -100,7 +100,8 @@ class AsistenciaController extends Controller
 
         if ($tipo === 'Confirmandos') {
             $query = Confirmando::with([
-                'grupo',
+                // El frontend solo usa grupo.id y grupo.nombre en esta vista.
+                'grupo:id,nombre,color',
                 'asistencias' => function ($q) use ($reunionIds) {
                     $q->whereIn('reunion_id', $reunionIds);
                 }])
