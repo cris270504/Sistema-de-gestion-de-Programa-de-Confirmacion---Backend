@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -44,6 +46,13 @@ return [
             'driver' => 'passport',
             'provider' => 'users',
         ],
+
+        // Migración a Supabase (Fase 1): valida el JWT de Supabase Auth.
+        // Driver registrado con Auth::viaRequest() en AppServiceProvider.
+        'supabase' => [
+            'driver' => 'supabase',
+            'provider' => 'users',
+        ],
     ],
 
     /*
@@ -66,7 +75,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         // 'users' => [

@@ -41,7 +41,10 @@ Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink
 Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->middleware('throttle:6,10');
 
 // Rutas protegidas
-Route::middleware(['auth:api', ParroquiaActiva::class])->group(function () {
+// Fase 1 migración Supabase: el guard `supabase` valida el JWT de Supabase Auth
+// contra users.auth_id. Se deja `api` (Passport) como segundo guard durante la
+// transición (rollback y suite de tests). El frontend ya usa supabase-js.
+Route::middleware(['auth:supabase,api', ParroquiaActiva::class])->group(function () {
     Route::get('/get-user', [PassportAuthController::class, 'me']);
     Route::post('/logout', [PassportAuthController::class, 'logout']);
     Route::get('/dashboard/metricas', [DashboardController::class, 'metricasYAlertas']);

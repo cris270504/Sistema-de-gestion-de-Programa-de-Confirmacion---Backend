@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Auth\SupabaseTokenGuard;
 use App\Tenancy\TenantContext;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +30,11 @@ class AppServiceProvider extends ServiceProvider
         // El proveedor (dueño de la plataforma) tiene acceso a todo: cualquier
         // chequeo de permiso (incluido el middleware `permission:`) pasa para él.
         Gate::before(fn ($user) => $user->hasRole('proveedor') ? true : null);
+
+        // Guard `supabase`: valida el access token de Supabase Auth (Fase 1 de la
+        // migración). El frontend ya se autentica con supabase-js; Laravel sigue
+        // sirviendo los datos validando ese token contra users.auth_id.
+        Auth::viaRequest('supabase', fn ($request) => app(SupabaseTokenGuard::class)($request));
 
         // Expiración de tokens Passport. Sin esto, el default deja tokens válidos
         // ~1 año; combinado con el guardado en localStorage del frontend, un token

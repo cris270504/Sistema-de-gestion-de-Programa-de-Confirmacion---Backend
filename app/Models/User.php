@@ -29,6 +29,7 @@ class User extends Authenticatable
         'password',
         'dni',
         'fecha_nacimiento',
+        'auth_id',
     ];
 
     protected $guard_name = 'api';

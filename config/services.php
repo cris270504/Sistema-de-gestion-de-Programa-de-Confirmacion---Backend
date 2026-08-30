@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Migración a Supabase (Fase 1): el guard `supabase` valida el access token
+    // de Supabase Auth (GoTrue) con este secreto HS256.
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+        'jwt_secret' => env('SUPABASE_JWT_SECRET'),
+    ],
+
 ];
