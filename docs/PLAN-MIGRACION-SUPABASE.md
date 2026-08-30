@@ -128,10 +128,18 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
 
 ## 5. Fases (ejecutar y verificar una a una; commit + checkpoint entre cada una)
 
-- **Fase 0 — Cimientos y prueba de concepto**
-  `supabase init`; stack local; baseline migration desde `supabase db dump` del estado
-  actual de producción. **Spike del Custom Access Token Hook** + una política RLS que
-  lea el claim (es el mayor desconocido: probarlo primero). Decidir §6.1/§6.2/§6.3.
+- **Fase 0 — Cimientos y prueba de concepto** ✅ HECHA (2026-08-30)
+  `supabase init`; stack local (Docker); baseline del esquema en
+  `supabase/migrations/00000000000000_baseline_laravel.sql` (46 migraciones Laravel
+  corridas contra Postgres 17 local). **Spike del Custom Access Token Hook + RLS por
+  claims** en `supabase/spike/` — VERDE: `parroquia_id`/roles/permisos viajan en el
+  JWT, la RLS de `confirmandos` aísla por parroquia y por grupo del catequista leyendo
+  `auth.jwt()`, sin `set_config`. Ver `supabase/spike/README.md`.
+  Aprendizajes → Fase 2: (a) `anon`/`authenticated` tienen grants sobre TODO `public`
+  por defecto → RLS obligatoria en todas las tablas; (b) toda tabla consultada dentro
+  de una política debe migrarse a claims a la vez; (c) `parroquia_configuraciones`
+  tiene NOT NULL sin default; (d) `DatabaseSeeder` con `WithoutModelEvents` rompe el
+  hook de `BelongsToParroquia`.
 
 - **Fase 1 — Auth**
   Habilitar Auth. Script de backfill: `auth.users` por cada `public.users` (+ `auth_id`,
