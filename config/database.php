@@ -96,7 +96,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'require',
+            'sslmode' => env('DB_SSLMODE', 'require'),
 
             // ➔ CAMBIA ESTO AQUÍ: Desactivamos la emulación para corregir el tipado estricto
             'options' => [

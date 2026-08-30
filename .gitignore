@@ -25,3 +25,6 @@ Thumbs.db
 
 # Estado de OpenSSL (no debe versionarse)
 .rnd
+
+# Migración Supabase (Fase 0) - entorno efímero local
+.env.supabaselocal
