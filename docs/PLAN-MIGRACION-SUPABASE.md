@@ -141,11 +141,25 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
   tiene NOT NULL sin default; (d) `DatabaseSeeder` con `WithoutModelEvents` rompe el
   hook de `BelongsToParroquia`.
 
-- **Fase 1 — Auth**
-  Habilitar Auth. Script de backfill: `auth.users` por cada `public.users` (+ `auth_id`,
-  email sintético para DNI-only). Hook con claims. Frontend: `stores/auth.js` +
-  `lib/api.js` → `supabase-js` (login construye el email sintético si el input es DNI;
-  fuera el manejo manual de `exp` del JWT). Laravel sigue sirviendo datos en paralelo.
+- **Fase 1 — Auth** ✅ HECHA en local (2026-08-30). Ramas `feat/migracion-supabase-fase-1`
+  en ambos repos. **Falta el cutover de auth en producción** (ver §8).
+  - Backfill `supabase/migrations/20260830200000_fase1_backfill_auth.sql`: `auth.users`
+    + `auth.identities` por cada `public.users`, reusando el hash bcrypt de Laravel
+    (`$2y$`→`$2a$`). Idempotente. Nota: las columnas de token de `auth.users` deben
+    quedar en `''` (no NULL) o GoTrue tira "Database error querying schema".
+  - Edge Function `resolver-login`: identificador tecleado (correo O DNI) → correo
+    canónico; anti-enumeración con correo sintético inerte.
+  - **Supabase firma los JWT con ES256 (claves asimétricas) + JWKS**, no HS256. El
+    guard de Laravel valida contra `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+  - Guard Laravel `supabase` (`App\Auth\SupabaseTokenGuard`, vía `Auth::viaRequest`).
+    `routes/api.php` → `auth:supabase,api` (Passport queda de 2º guard: rollback + tests).
+  - Migración Laravel `add_auth_id_to_users_table` (para tests y entornos Laravel).
+  - Frontend: `@supabase/supabase-js`, `src/lib/supabase.js`, `stores/auth.js`
+    (resolver-login → signInWithPassword → hidrata de `/get-user`), `lib/api.js`
+    (token de la sesión de Supabase), `App.vue` (getSession + onAuthStateChange).
+  - Verificado end-to-end en navegador: login por DNI → dashboard con datos, sesión
+    persistida tras reload, aislamiento por parroquia/grupo intacto. Backend 68 verde,
+    frontend 52 verde.
 
 - **Fase 2 — RLS como único guardián de tenant**
   Reescribir helpers y verificar TODAS las políticas contra claims. pgTAP portando
@@ -182,6 +196,31 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
    `resolver-login` y las Edge Functions sensibles llevan un contador simple en Postgres;
    Cloudflare delante de Vercel queda como opción futura. No se replican todos los
    `throttle:` actuales uno a uno.
+
+## 7bis. Cutover de auth (poner la Fase 1 en producción)
+
+La Fase 1 ya funciona en local; para activarla en producción hace falta un cambio
+en el proyecto Supabase real + un mini-cutover (todos re-inician sesión una vez):
+
+1. **Proyecto Supabase de producción** (idealmente primero un proyecto *staging*):
+   - Habilitar Auth. Aplicar migraciones `20260830190000` (hook) y — si se hace
+     RLS por claims ya — `20260830190100`.
+   - Desplegar la Edge Function `resolver-login` (`supabase functions deploy`).
+   - Registrar el hook: panel → Authentication → Hooks → Custom Access Token →
+     `custom_access_token_hook` (o `config.toml` + `supabase db push` si el proyecto
+     se gestiona por CLI).
+   - Correr el backfill: `select public.fase1_backfill_auth_users();` **tras un backup**.
+     Verificar con un par de logins de prueba.
+2. **Backend (Render, mientras siga vivo)**: setear `SUPABASE_URL` y — solo si se usa
+   el fallback HS256 — `SUPABASE_JWT_SECRET`. Desplegar la rama de Fase 1. El guard
+   `auth:supabase,api` acepta ambos tokens, así que no hay ventana de corte dura.
+3. **Frontend (Vercel)**: setear `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`,
+   desplegar la rama de Fase 1.
+4. Los usuarios con token Passport viejo en `localStorage` re-inician sesión una vez.
+5. **Rollback**: revertir el deploy del frontend (vuelve a `/api/login` de Passport).
+
+Recomendado: hacer esto contra un proyecto Supabase **staging** primero, y recién
+después contra el de producción.
 
 ## 7. Qué se pierde / riesgos
 
