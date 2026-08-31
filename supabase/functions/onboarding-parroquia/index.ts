@@ -13,19 +13,11 @@
 // Body: { nombre, admin_nombre, admin_email, slug?, zona_horaria?, admin_dni? }
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildCors, origenBloqueado } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const CORS = {
-  "Access-Control-Allow-Origin": Deno.env.get("ONBOARDING_PARROQUIA_ALLOWED_ORIGIN") ?? "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
 function mapDbError(error: { code?: string; message?: string }): { message: string; status: number } {
   const msg = error.message ?? "Error";
@@ -46,7 +38,12 @@ function tempPassword(): string {
 }
 
 Deno.serve(async (req) => {
+  const CORS = buildCors(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (origenBloqueado(req)) return json({ message: "Origen no permitido." }, 403);
   if (req.method !== "POST") return json({ message: "method_not_allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization") ?? "";

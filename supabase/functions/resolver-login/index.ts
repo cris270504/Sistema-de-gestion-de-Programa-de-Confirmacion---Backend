@@ -15,23 +15,17 @@
 // invalid_credentials igual que con una contraseña incorrecta.
 
 import postgres from "npm:postgres@3";
-
-const CORS = {
-  "Access-Control-Allow-Origin": Deno.env.get("RESOLVER_LOGIN_ALLOWED_ORIGIN") ?? "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
+import { buildCors, origenBloqueado } from "../_shared/cors.ts";
 
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 2 });
 
 Deno.serve(async (req) => {
+  const CORS = buildCors(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (origenBloqueado(req)) return json({ error: "origin_not_allowed" }, 403);
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   let login: unknown;
