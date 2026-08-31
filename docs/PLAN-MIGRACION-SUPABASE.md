@@ -179,20 +179,41 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
     de BD) — probarlo directamente en staging.
   - Pendiente: portar los tests de aislamiento a pgTAP formal (hoy hay 1 script SQL).
 
-- **Fase 3 — Lecturas → PostgREST + vistas**
-  Crear vistas §4.1. Capa `services/` del frontend: cada GET → `from()`/`rpc()`.
+- **Fase 3 — Lecturas → PostgREST + vistas** ✅ HECHA (2026-08-31). Vistas
+  `v_confirmando_perfil`, `v_asistencia_matriz` (RPC), `v_dashboard_*`,
+  `v_justificaciones_pendientes`, `v_usuarios`, `v_parroquias`. Toda la capa
+  `services/` del frontend en `from()`/`rpc()`.
 
-- **Fase 4 — Escrituras → RPC + constraints**
-  Funciones §4.2 + validación §4.4. Migrar CRUD simple a PostgREST directo.
+- **Fase 4 — Escrituras → RPC + constraints** ✅ HECHA (2026-08-31). RPCs
+  `fn_guardar_asistencias`, `fn_asignar_ruta_sacramental`, trío de justificaciones,
+  `fn_guardar_confirmando`, `fn_generar_grupos_equitativo`, `fn_sync_*_grupo`,
+  `fn_guardar_configuracion`. CRUD simple (grupos, catálogos, delete/retirar
+  confirmando, parroquia) por PostgREST directo con RLS + triggers.
 
-- **Fase 5 — Edge Functions**
-  §4.3. CORS, cabeceras de seguridad, limitador.
+- **Fase 5 — Edge Functions** ✅ HECHA + DESPLEGADA (2026-08-31).
+  `resolver-login`, `admin-usuarios` (alta/baja de usuarios → auth.users),
+  `onboarding-parroquia`, `importar-confirmandos` (SheetJS),
+  `exportar-confirmandos` (ExcelJS). Roles/permisos por RPCs SECURITY DEFINER
+  (no tocan auth.users → sin Edge Function). CORS por env `*_ALLOWED_ORIGIN`
+  (hoy `*`, endurecer en cutover).
+  Patrón clave: en el proyecto cloud `service_role` NO tiene privilegios de
+  tabla → toda escritura desde Edge Functions va por RPC `SECURITY DEFINER`
+  (owner `postgres`); la Edge Function solo hace Auth Admin API + `admin.rpc()`.
 
-- **Fase 6 — Cutover y baja de Laravel**
-  Ventana de mantenimiento (≤300 confirmandos, 1 parroquia → big-bang viable):
-  sync final de datos → cambiar env del frontend a solo-Supabase → apagar Render →
-  archivar repo Laravel (referencia) → actualizar `ARQUITECTURA.md`. Todos los usuarios
-  re-inician sesión una vez (ya hay sesión única por usuario, impacto nulo).
+- **Fase 6 — Cutover y baja de Laravel** — prep hecha: `fn_get_user` +
+  `fn_log_frontend_error` (`2026_09_24_100000`) → **el frontend ya no llama a
+  Laravel en ningún lado**. Falta el cutover operativo (ventana de
+  mantenimiento, ≤300 confirmandos / 1 parroquia → big-bang):
+  1. Renombrar el proyecto Supabase; rotar el `sbp_` + DB password; endurecer
+     CORS de las Edge Functions; pinger externo + `pg_dump` programado (Free).
+  2. Borrar la data de seed/spike/pruebas del proyecto destino.
+  3. `pg_dump --data-only` del Supabase actual (us-west-2) → cargar en
+     `srdccebxlslgomvxrfnu` → `select public.fase1_backfill_auth_users()`.
+  4. Verificar (logins reales, dashboard, aislamiento).
+  5. Frontend Vercel: setear `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` en
+     `.env.production`, desplegar. Apagar Render. Archivar el repo Laravel;
+     actualizar `ARQUITECTURA.md`.
+  Rollback: re-apuntar el frontend a Render (mientras siga vivo).
 
 ## 6. Decisiones (cerradas 2026-08-30)
 
