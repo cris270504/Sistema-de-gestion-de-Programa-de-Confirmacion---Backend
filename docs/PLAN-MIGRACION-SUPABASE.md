@@ -235,6 +235,22 @@ Pasos ejecutados (todos verdes):
 8. Verificado E2E: Laravel local `--env=staging` valida el ES256 contra el JWKS de
    staging; navegador → login por DNI y correo → dashboard. Aislamiento intacto.
 
+**Fase 2 aplicada a staging (2026-08-31):**
+9. `php artisan migrate --env=staging` corrió `2026_09_07_100000_fase2_rls_por_claims`
+   + `2026_09_08_100000_fix_hook_rls_supabase_auth_admin`.
+10. **Gap encontrado y arreglado**: la Fase 2 puso RLS FORCE sin política en
+    `roles/permissions/model_has_*` y restrictiva en `users`. En LOCAL el hook seguía
+    andando (SECURITY DEFINER + `postgres` local = superusuario). En CLOUD `postgres`
+    no bypassa RLS → el hook quedaba sin claims. Fix `2026_09_08_100000`: el hook pasa
+    a SECURITY INVOKER + política `TO supabase_auth_admin USING (true)` en las 6 tablas
+    que consulta (patrón canónico de Supabase para hooks).
+11. `supabase functions deploy resolver-login` (con el fix `sql.begin` + claim
+    `es_proveedor` para leer `users` bajo la RLS nueva).
+12. Verificado E2E contra la nube: login por DNI/correo → JWT con claims completos;
+    Laravel `--env=staging` → coordinador ve toda su parroquia, catequista solo su
+    grupo, POST sin permiso → 403; navegador → dashboard. Aislamiento parroquia + grupo
+    enforced por la RLS de Fase 2 leyendo `request.jwt.claims`.
+
 ⚠️ **Para Fase 3** (PostgREST sirviendo datos): con auto-expose OFF hay que dar
 `GRANT` explícito por tabla a `authenticated` y recargar el schema de PostgREST.
 
