@@ -67,12 +67,31 @@ Diagnóstico corrido contra el origen `hqvdkeijdgiejiekilhx`:
 la brecha son solo objetos que el destino agrega de más (funciones, vistas, RLS,
 triggers, unique indexes) y no rechazan la data — salvo los 3 celulares.
 
-## T-1 día — Ensayo (recomendado)
+## Ensayo — HECHO y VERDE (2026-08-31)
 
-- [ ] Hacer el paso de datos completo contra el destino **con la data de prueba
-      todavía dentro** para medir tiempos y cazar errores de FK/constraint.
-      Después re-preparar el destino en la ventana. La data es chica: el
-      `pg_dump` pesa pocos cientos de KB, todo el corte < 15 min.
+Se corrió el paso de datos completo contra el destino y se validó E2E:
+
+- `pg_dump --data-only` del origen: **49 KB**, 23 tablas. Restore **sin errores**
+  (~5 s). Conteos destino == origen (18 users, 125 confirmandos, 1675 asistencias,
+  51 permisos, 4 roles, 18 model_has_roles, etc.).
+- `fase1_backfill_auth_users()` → 18 `auth.users` creados, todos con `auth_id`.
+- Login real por DNI (`resolver-login` → `signInWithPassword`) → JWT con claims
+  correctos (`app_user_id`, `parroquia_id`, `roles`, 50 permisos).
+- `fn_get_user` → perfil completo. `v_dashboard_metricas` → números reales.
+- **RLS con data real**: super-admin ve 125 confirmandos; una catequista (2 grupos)
+  ve solo 30 (los de sus grupos).
+
+**El destino QUEDÓ con la data real cargada.** En la ventana se re-hace igual
+(el origen habrá cambiado). Las 2 passwords de prueba que se usaron en el ensayo
+se resetearon a valores aleatorios (el backfill del cutover las pisa igual).
+
+**Aprendizajes para la ventana:**
+- `pg_restore --disable-triggers` **NO funciona** en Supabase (el rol `postgres`
+  no es superusuario → "permission denied: is a system trigger"). Restaurar
+  **sin** `--disable-triggers`: el `-Fc` ya viene en orden de FK y carga limpio.
+- El `confirmandos_celular_check`: o se limpian los 3 celulares en el origen antes
+  del dump (§1), o se hace `DROP CONSTRAINT` en el destino antes del restore y se
+  re-crea después de limpiar (lo que hizo el ensayo).
 
 ---
 
@@ -146,14 +165,15 @@ de cada proyecto (`postgres.<ref>:<pass>@aws-0-<region>.pooler.supabase.com:5432
     --exclude-table-data='public.personal_access_tokens' \
     -Fc -f data-origen.dump
   ```
-- [ ] Restaurar en el destino como `postgres` (BYPASSRLS); `--disable-triggers`
-      apaga las FKs y los triggers de `parroquia_id`/`updated_at` durante la carga:
+- [ ] Restaurar en el destino como `postgres` (BYPASSRLS). **SIN**
+      `--disable-triggers` (falla en Supabase); el `-Fc` ya viene en orden de FK:
   ```bash
-  pg_restore --data-only --no-owner --no-privileges --disable-triggers \
-    --exit-on-error -d "$DESTINO" data-origen.dump
+  pg_restore --data-only --no-owner --no-privileges --exit-on-error \
+    -d "$DESTINO" data-origen.dump
   ```
   - Si algún `--exclude-table-data` apunta a una tabla que no existe en el
     origen, `pg_dump` lo ignora (sin `--strict-names`). OK.
+  - Verificado en el ensayo: carga limpia, ~5 s.
 - [ ] Resincronizar TODAS las secuencias (el `--data-only` no lo hace) — en el destino:
   ```sql
   DO $$
