@@ -39,73 +39,69 @@ esquema (Fases 0–5) + datos de prueba.
         `SUPABASE_URL` + `SUPABASE_ANON_KEY`. Correrlo a mano una vez
         (`workflow_dispatch`) y verificar verde.
   - [ ] Workflow `supabase-backup.yml` en el repo del frontend, con secret
-        `SUPABASE_DB_URL` (URI de conexión directa). Correrlo a mano y verificar
-        que sube el artifact `.dump`.
+        `SUPABASE_DB_URL` (URI del **Session pooler**). Correrlo a mano y verificar
+        que sube el artifact `.dump`.  ✅ HECHO 2026-08-31 (verde).
+  - [ ] Ídem `supabase-keepalive.yml` (secrets `SUPABASE_URL` + `SUPABASE_ANON_KEY`).
+        ✅ HECHO 2026-08-31 (verde).
 - [ ] **Edge Functions**: `supabase functions list` → deben estar las 5
       (`resolver-login`, `admin-usuarios`, `onboarding-parroquia`,
       `importar-confirmandos`, `exportar-confirmandos`).
 - [ ] **Migraciones**: `php artisan migrate:status --env=staging` → 0 pendientes.
 
-## T-3 días — Reconciliar esquema origen ↔ destino
+## Esquema origen ↔ destino — YA RECONCILIADO (2026-08-31)
 
-El paso de datos es `pg_dump --data-only` (public + auth) del origen → cargar en
-el destino. Para que las filas encajen, **el origen tiene que tener corridas
-TODAS las migraciones Laravel** que agregan columnas NOT NULL en el destino, en
-particular las multi-parroquia (`parroquia_id` en confirmandos/grupos/apoderados/
-reunions, tablas `parroquias` / `parroquia_configuraciones`) y `users.auth_id`
-(esta última puede faltar: la llena el backfill).
+Diagnóstico corrido contra el origen `hqvdkeijdgiejiekilhx`:
 
-- [ ] Conectarse al **origen** y comparar:
-  ```bash
-  # cuántas migraciones corrió el origen
-  psql "$ORIGEN_DB_URL" -c "select count(*) from migrations;"
-  # vs las del repo
-  ls database/migrations | wc -l   # 66
-  psql "$ORIGEN_DB_URL" -c "\d public.confirmandos" | grep parroquia_id
-  psql "$ORIGEN_DB_URL" -c "\d public.users" | grep auth_id
-  ```
-- [ ] Si el origen está atrasado: `php artisan migrate` **contra el origen**
-      (con un `.env` apuntando ahí) para nivelarlo — SIN las migraciones
-      `2026_09_*` de Supabase (esas son solo para el destino). Alternativa:
-      correr solo las de esquema faltantes a mano.
-- [ ] Anotar el conteo de filas de las tablas clave del origen para verificar
-      después:
-  ```bash
-  for t in users parroquias grupos confirmandos apoderados reunions asistencia \
-           justificaciones confirmando_sacramento confirmando_requisito \
-           confirmando_apoderado catequista_grupo sacramentos requisitos \
-           tipo_apoderados; do
-    printf "%-26s " "$t"; psql "$ORIGEN_DB_URL" -tAc "select count(*) from $t";
-  done
-  ```
+| | |
+|---|---|
+| Migraciones | 46 (hasta `2026_09_05_090000_add_activo_to_users_table`) |
+| Multi-parroquia (`parroquias`, `parroquia_id`, `sacramentos.clave`, `grupos.periodo`) | ✅ presente |
+| `users.auth_id` | ❌ no existe → lo crea `fase1_backfill_auth_users()` |
+| RLS en tablas de dominio | sí (modelo viejo `set_config`) — irrelevante: se carga como `postgres` (BYPASSRLS) + `--disable-triggers` |
+| Duplicados que romperían UNIQUE del destino (justificaciones/grupos/catequista_grupo) | 0 ✅ |
+| Colores de grupo inválidos | 0 ✅ |
+| **Celulares de confirmando que romperían el CHECK** (`^[0-9]{9}$`) | **3 filas** (ids 96, 110, 133 — basura tipo `"900 1"`) → NULL en la ventana |
+| Data real | 18 users · 1 parroquia · 8 grupos · 125 confirmandos · 94 apoderados · 28 reunions · 1675 asistencias · 57 justificaciones · pivotes · 18 `model_has_roles` |
 
-## T-1 día — Ensayo (opcional pero recomendado)
+**No hace falta nivelar migraciones en el origen.** El esquema base es compatible;
+la brecha son solo objetos que el destino agrega de más (funciones, vistas, RLS,
+triggers, unique indexes) y no rechazan la data — salvo los 3 celulares.
+
+## T-1 día — Ensayo (recomendado)
 
 - [ ] Hacer el paso de datos completo contra el destino **con la data de prueba
-      todavía dentro** para medir tiempos y detectar errores de FK/constraint.
-      Después restaurar el destino a como estaba (o simplemente re-preparar en la
-      ventana). Si el ensayo sale limpio, la ventana es trivial.
+      todavía dentro** para medir tiempos y cazar errores de FK/constraint.
+      Después re-preparar el destino en la ventana. La data es chica: el
+      `pg_dump` pesa pocos cientos de KB, todo el corte < 15 min.
 
 ---
 
 ## VENTANA DE MANTENIMIENTO (~1 h)
 
+Entorno: cliente **PostgreSQL 17**; `ORIGEN` y `DESTINO` = URIs del **Session pooler**
+de cada proyecto (`postgres.<ref>:<pass>@aws-0-<region>.pooler.supabase.com:5432/postgres`).
+
 ### 1. Congelar (T-0)
 
 - [ ] Avisar a los usuarios (ya avisado con anticipación).
-- [ ] Poner Laravel en mantenimiento: en Render, `php artisan down` o parar el
-      servicio. Desde acá nadie escribe en el origen.
-- [ ] Backup fresco del **origen**:
+- [ ] Poner Laravel en mantenimiento: en Render, parar el servicio (o `php artisan down`).
+      Desde acá nadie escribe en el origen.
+- [ ] Backup completo fresco del **origen**:
   ```bash
-  pg_dump "$ORIGEN_DB_URL" --no-owner --no-privileges -Fc \
+  pg_dump "$ORIGEN" --no-owner --no-privileges -Fc \
     -f "origen-final-$(date -u +%Y%m%dT%H%M%SZ).dump"
+  ```
+- [ ] **Limpiar los 3 celulares basura** en el origen (antes del dump):
+  ```sql
+  UPDATE public.confirmandos SET celular = NULL WHERE id IN (96, 110, 133);
+  -- verificar: 0 filas
+  SELECT count(*) FROM public.confirmandos WHERE celular IS NOT NULL AND celular !~ '^[0-9]{9}$';
   ```
 
 ### 2. Limpiar el destino
 
-- [ ] Backup del destino por las dudas (o correr `supabase-backup.yml` a mano).
-- [ ] Borrar **toda la data de prueba/spike** del destino. Las tablas de dominio
-      tienen FKs; borrar en orden hijo→padre. Como `postgres` (bypass RLS):
+- [ ] Correr `supabase-backup.yml` a mano (respaldo del destino con su data de prueba).
+- [ ] Borrar la data de prueba del destino. Como `postgres` (BYPASSRLS):
   ```sql
   BEGIN;
   TRUNCATE
@@ -114,72 +110,97 @@ reunions, tablas `parroquias` / `parroquia_configuraciones`) y `users.auth_id`
     public.confirmando_requisito, public.sacramento_requisito,
     public.catequista_grupo, public.reunion_user,
     public.confirmandos, public.apoderados, public.reunions,
-    public.grupos, public.sacramentos, public.requisitos,
-    public.tipo_apoderados, public.frontend_error_logs
+    public.grupos, public.sacramentos, public.requisitos, public.tipo_apoderados,
+    public.frontend_error_logs,
+    public.model_has_roles, public.model_has_permissions,
+    public.role_has_permissions, public.permissions, public.roles,
+    public.parroquia_configuraciones, public.users, public.parroquias
     RESTART IDENTITY CASCADE;
-  DELETE FROM public.model_has_roles WHERE model_type = 'App\Models\User';
-  DELETE FROM public.model_has_permissions WHERE model_type = 'App\Models\User';
-  -- users de prueba (dejar solo los que se van a re-crear del origen)
-  DELETE FROM public.users;
-  DELETE FROM public.parroquia_configuraciones;
-  DELETE FROM public.parroquias;
   COMMIT;
   ```
-  - [ ] Borrar los `auth.users` de prueba (los recrea el backfill):
-    ```sql
-    DELETE FROM auth.users;   -- en el destino, antes de cargar
-    ```
-  - ⚠️ NO tocar `public.roles` / `public.permissions` / `public.role_has_permissions`
-    (catálogo del sistema, ya sembrado y correcto).
+  (Se recargan roles/permissions/pivotes desde el origen para que quede
+  todo autoconsistente — el código del destino chequea por NOMBRE, no por id.)
+- [ ] Borrar los `auth.users` de prueba (los recrea el backfill):
+  ```sql
+  DELETE FROM auth.users;
+  ```
 
 ### 3. Cargar la data del origen
 
-- [ ] `pg_dump` data-only del origen (solo `public`; `auth` del origen NO sirve —
-      el destino usa Supabase Auth):
+- [ ] `pg_dump --data-only` del `public` del origen (sin infra ni `migrations`;
+      `auth` del origen NO se toca — el destino usa Supabase Auth):
   ```bash
-  pg_dump "$ORIGEN_DB_URL" --data-only --no-owner --no-privileges \
-    --schema=public \
-    --exclude-table='public.migrations' \
-    --exclude-table='public.roles' --exclude-table='public.permissions' \
-    --exclude-table='public.role_has_permissions' \
+  pg_dump "$ORIGEN" --data-only --no-owner --no-privileges --schema=public \
+    --exclude-table-data='public.migrations' \
     --exclude-table-data='public.cache' --exclude-table-data='public.cache_locks' \
     --exclude-table-data='public.jobs' --exclude-table-data='public.job_batches' \
     --exclude-table-data='public.failed_jobs' --exclude-table-data='public.sessions' \
     --exclude-table-data='public.password_reset_tokens' \
+    --exclude-table-data='public.frontend_error_logs' \
     --exclude-table-data='public.oauth_access_tokens' \
     --exclude-table-data='public.oauth_auth_codes' \
     --exclude-table-data='public.oauth_refresh_tokens' \
+    --exclude-table-data='public.oauth_clients' \
+    --exclude-table-data='public.oauth_device_codes' \
+    --exclude-table-data='public.oauth_personal_access_clients' \
+    --exclude-table-data='public.personal_access_tokens' \
     -Fc -f data-origen.dump
   ```
-- [ ] Restaurar en el destino (como `postgres`, que hace bypass RLS). `--disable-triggers`
-      evita que se dispare la RLS y los triggers de `parroquia_id` durante la carga:
+- [ ] Restaurar en el destino como `postgres` (BYPASSRLS); `--disable-triggers`
+      apaga las FKs y los triggers de `parroquia_id`/`updated_at` durante la carga:
   ```bash
   pg_restore --data-only --no-owner --no-privileges --disable-triggers \
-    -d "$DESTINO_DB_URL" data-origen.dump
+    --exit-on-error -d "$DESTINO" data-origen.dump
   ```
-  - Si el orden de tablas da errores de FK, agregar `--single-transaction` +
-    revisar; o restaurar tabla por tabla en orden padre→hijo.
-- [ ] Resincronizar las secuencias (el data-only no lo hace):
+  - Si algún `--exclude-table-data` apunta a una tabla que no existe en el
+    origen, `pg_dump` lo ignora (sin `--strict-names`). OK.
+- [ ] Resincronizar TODAS las secuencias (el `--data-only` no lo hace) — en el destino:
   ```sql
-  SELECT setval(pg_get_serial_sequence(quote_ident(t), 'id'),
-                COALESCE((SELECT max(id) FROM ONLY public.%I), 1))
-  -- más simple: por cada tabla con id serial:
-  --   SELECT setval('public.confirmandos_id_seq', (SELECT max(id) FROM public.confirmandos));
+  DO $$
+  DECLARE r record;
+  BEGIN
+    FOR r IN
+      SELECT s.relname AS seq, t.relname AS tbl, a.attname AS col
+      FROM pg_class s
+      JOIN pg_depend d  ON d.objid = s.oid AND d.deptype = 'a' AND d.classid = 'pg_class'::regclass
+      JOIN pg_class t   ON t.oid = d.refobjid
+      JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+      WHERE s.relkind = 'S' AND t.relnamespace = 'public'::regnamespace
+    LOOP
+      EXECUTE format(
+        'SELECT setval(%L, GREATEST(COALESCE((SELECT max(%I) FROM public.%I), 0), 1), (SELECT count(*) > 0 FROM public.%I))',
+        r.seq, r.col, r.tbl, r.tbl);
+    END LOOP;
+  END $$;
   ```
-  (o correr el bloque `resync_secuencias` que ya existe en las migraciones).
 
 ### 4. Crear los auth.users reales
 
 - [ ] En el destino:
   ```sql
   SELECT public.fase1_backfill_auth_users();   -- crea auth.users + identities reusando el hash bcrypt
+
   UPDATE auth.users SET
-    confirmation_token = '', recovery_token = '', email_change_token_new = '',
-    email_change = '', email_change_token_current = '', phone_change = '',
-    phone_change_token = '', reauthentication_token = ''
-  WHERE confirmation_token IS NULL OR recovery_token IS NULL;   -- GoTrue: deben ser '' no NULL
+    confirmation_token = coalesce(confirmation_token, ''),
+    recovery_token = coalesce(recovery_token, ''),
+    email_change_token_new = coalesce(email_change_token_new, ''),
+    email_change = coalesce(email_change, ''),
+    email_change_token_current = coalesce(email_change_token_current, ''),
+    phone_change = coalesce(phone_change, ''),
+    phone_change_token = coalesce(phone_change_token, ''),
+    reauthentication_token = coalesce(reauthentication_token, '');
   ```
-- [ ] Verificar: `SELECT count(*) FROM auth.users;` == `SELECT count(*) FROM public.users;`
+- [ ] Verificar: `SELECT count(*) FROM auth.users;` == `SELECT count(*) FROM public.users;` (= 18)
+- [ ] Verificar que existen los permisos que usa el código nuevo:
+  ```sql
+  SELECT unnest(ARRAY['ver roles','crear roles','editar roles','eliminar roles',
+                      'administrar plataforma','crear confirmandos','ver confirmandos',
+                      'ver todos los confirmandos','asignar catequista','asignar confirmandos'])
+         EXCEPT SELECT name FROM public.permissions WHERE guard_name = 'api';
+  ```
+  Si devuelve filas, faltan permisos → `INSERT INTO public.permissions (name, guard_name, ...)`
+  y asignarlos al rol que corresponda, o re-correr solo la parte de permisos del
+  `RolePermissionUserSeeder`.
 
 ### 5. Verificar
 
