@@ -210,6 +210,22 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
    Cloudflare delante de Vercel queda como opción futura. No se replican todos los
    `throttle:` actuales uno a uno.
 
+### Decisiones cerradas 2026-08-31
+
+5. **Proyecto de producción:** ✅ el proyecto `srdccebxlslgomvxrfnu` (hoy
+   "Sistema de gestión de asistencias - staging", sa-east-1) **pasa a ser
+   producción**. NO se crea un proyecto separado. Antes del cutover: renombrar
+   el proyecto, rotar el access token `sbp_` + DB password, endurecer CORS /
+   allowed origins, revisar el plan (Free se pausa → Pro para prod), y **borrar
+   toda la data de seed/spike/pruebas** antes de cargar la real.
+6. **BD de producción actual:** un **proyecto Supabase existente** (Postgres,
+   us-west-2) al que se conecta el Laravel de Render. El sync de Fase 6 es
+   Postgres→Postgres: `pg_dump --data-only` de las tablas de dominio del proyecto
+   actual → cargar en `srdccebxlslgomvxrfnu` → `select public.fase1_backfill_auth_users()`
+   para crear los `auth.users` de los usuarios reales. Las migraciones Fase 0–5
+   ya construyeron el esquema + objetos nuevos (hook, RLS por claims, vistas, RPCs)
+   en el proyecto destino.
+
 ## 7bis. Cutover de auth
 
 ### ✅ Staging — HECHO y verificado (2026-08-30)
