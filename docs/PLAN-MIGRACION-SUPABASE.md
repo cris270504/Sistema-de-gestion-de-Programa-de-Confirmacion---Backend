@@ -197,10 +197,41 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
    Cloudflare delante de Vercel queda como opción futura. No se replican todos los
    `throttle:` actuales uno a uno.
 
-## 7bis. Cutover de auth (poner la Fase 1 en producción)
+## 7bis. Cutover de auth
 
-La Fase 1 ya funciona en local; para activarla en producción hace falta un cambio
-en el proyecto Supabase real + un mini-cutover (todos re-inician sesión una vez):
+### ✅ Staging — HECHO y verificado (2026-08-30)
+
+Proyecto Supabase **staging**: `srdccebxlslgomvxrfnu` (sa-east-1, "Sistema de gestión
+de asistencias - staging"). Security: Data API ON, **auto-expose new tables OFF**,
+automatic RLS OFF.
+
+Pasos ejecutados (todos verdes):
+1. `supabase link --project-ref srdccebxlslgomvxrfnu` (token `SUPABASE_ACCESS_TOKEN`
+   + `SUPABASE_DB_PASSWORD` como env — el classifier bloquea el password inline).
+2. `php artisan migrate --env=staging` (las 47 Laravel, vía session pooler `:5432`).
+3. Aplicado por `DB::exec` sólo `20260830190000` (hook + auth_id) y `20260830200000`
+   (función de backfill). **NO** `20260830190100` (spike RLS) — dejaría a Laravel sin
+   lecturas porque no setea `request.jwt.claims`.
+4. `php artisan db:seed --class=RolePermissionUserSeeder --env=staging`.
+5. `select public.fase1_backfill_auth_users()` + `update auth.users set <token cols> = ''`.
+6. Hook registrado vía Management API: `PATCH /v1/projects/{ref}/config/auth`
+   `{hook_custom_access_token_enabled:true, hook_custom_access_token_uri:"pg-functions://postgres/public/custom_access_token_hook"}`.
+7. `supabase functions deploy resolver-login`. **`resolver-login` reescrita** para
+   consultar `SUPABASE_DB_URL` con `npm:postgres` en vez de PostgREST (con auto-expose
+   OFF, `public.users` no está en el Data API).
+8. Verificado E2E: Laravel local `--env=staging` valida el ES256 contra el JWKS de
+   staging; navegador → login por DNI y correo → dashboard. Aislamiento intacto.
+
+⚠️ **Para Fase 3** (PostgREST sirviendo datos): con auto-expose OFF hay que dar
+`GRANT` explícito por tabla a `authenticated` y recargar el schema de PostgREST.
+
+⚠️ **Hardening pendiente**: rotar el access token `sbp_...` y la DB password que se
+compartieron en texto plano. Revisar allowed origins / CORS del proyecto staging.
+
+### Producción — pendiente
+
+Mismos pasos contra el proyecto Supabase de producción + un mini-cutover
+(todos re-inician sesión una vez):
 
 1. **Proyecto Supabase de producción** (idealmente primero un proyecto *staging*):
    - Habilitar Auth. Aplicar migraciones `20260830190000` (hook) y — si se hace
