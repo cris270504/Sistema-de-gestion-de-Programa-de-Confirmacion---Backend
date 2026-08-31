@@ -13,6 +13,13 @@ esquema (Fases 0–5) + datos de prueba.
 
 **Frontend:** `https://confirmacionscj.vercel.app` (Vercel).
 
+> **`pg_dump` / `pg_restore`**: usar cliente **PostgreSQL 17** (el server es 17.x;
+> un pg_dump 16 falla con "server version mismatch"). Y para conectarse desde un
+> entorno **IPv4-only** (CI, algunos ISP) usar el **Session pooler** de Supabase
+> (`aws-0-<region>.pooler.supabase.com:5432`, user `postgres.<ref>`), NO la
+> conexión directa `db.<ref>.supabase.co` (IPv6-only). El pooler de transacción
+> (`:6543`) no sirve para `pg_dump`.
+
 ---
 
 ## T-7 días — Preparar el destino
