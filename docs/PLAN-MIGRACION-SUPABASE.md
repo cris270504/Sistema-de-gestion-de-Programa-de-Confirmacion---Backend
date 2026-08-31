@@ -161,10 +161,23 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
     persistida tras reload, aislamiento por parroquia/grupo intacto. Backend 68 verde,
     frontend 52 verde.
 
-- **Fase 2 — RLS como único guardián de tenant**
-  Reescribir helpers y verificar TODAS las políticas contra claims. pgTAP portando
-  `TenantIsolationTest`, `ScopePorGrupoTest`, `JustificacionScopeTest`,
-  `RolesDosNivelesTest`.
+- **Fase 2 — RLS como único guardián de tenant** ✅ HECHA en local (2026-08-31),
+  commit `314d160`. Falta aplicarla a staging/prod.
+  - Migración `2026_09_07_100000_fase2_rls_por_claims`: helpers `app_*` reescritos
+    para leer `current_setting('request.jwt.claims')`; `confirmandos`/`catequista_grupo`
+    del esquema `app.jwt_*` del spike de vuelta a `public.app_*` (+ `DROP SCHEMA app`);
+    los `_all USING(true)` reemplazados por políticas reales; RLS nueva en `parroquias`
+    y los 4 pivotes de dominio; infra + Spatie con `REVOKE` de anon/authenticated + RLS.
+  - `SetPostgresRlsContext` pone `request.jwt.claims` sintético (misma forma que el
+    hook) → UN solo mecanismo para PostgREST y Laravel. CLI marca `es_proveedor`.
+  - `resolver-login`: `sql.begin` + `set_config` del claim (en cloud `postgres` sin
+    BYPASSRLS quedaría sin resolver con FORCE RLS en `users`).
+  - Verificado: `supabase/tests/fase2_rls_por_claims.sql` (SET ROLE + claims) verde;
+    Laravel local con aislamiento intacto; PostgREST directo idem; suite 68 verde.
+  - ⚠️ Al aplicar a staging/prod: correr la migración, y el edge runtime local NO
+    puede probar `resolver-login` (npm:postgres no resuelve el host del contenedor
+    de BD) — probarlo directamente en staging.
+  - Pendiente: portar los tests de aislamiento a pgTAP formal (hoy hay 1 script SQL).
 
 - **Fase 3 — Lecturas → PostgREST + vistas**
   Crear vistas §4.1. Capa `services/` del frontend: cada GET → `from()`/`rpc()`.
