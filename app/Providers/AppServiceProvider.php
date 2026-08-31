@@ -62,7 +62,9 @@ class AppServiceProvider extends ServiceProvider
 
             if (config('database.default') === 'pgsql') {
                 try {
-                    DB::statement("SELECT set_config('app.current_user_privileged', 'true', false)");
+                    // Fase 2: la RLS lee request.jwt.claims. En CLI marcamos
+                    // es_proveedor para saltarnos todas las políticas.
+                    DB::statement("SELECT set_config('request.jwt.claims', '{\"es_proveedor\":true}', false)");
                 } catch (\Throwable $e) {
                     // La conexión aún no está disponible (p. ej. antes de crear la BD); se ignora.
                 }

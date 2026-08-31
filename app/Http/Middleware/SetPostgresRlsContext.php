@@ -9,42 +9,59 @@ use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Propaga a la sesión de Postgres el usuario y la parroquia del request
- * (app.current_user_id / app.current_user_privileged / app.current_parroquia_id)
- * para que las políticas RLS filtren según el rol y la parroquia reales.
+ * Fija en la sesión de Postgres los claims del usuario del request
+ * (`request.jwt.claims`) para que las políticas RLS filtren por rol y parroquia.
  *
- * Corre DESPUÉS de ResolveTenant: la parroquia y el "privilegiado" salen de
- * App\Tenancy\TenantContext (que ya contempló el rol proveedor y el acting-as).
+ * Fase 2 de la migración a Supabase: la RLS lee `request.jwt.claims` (lo mismo
+ * que pone PostgREST con el JWT de Supabase Auth). Este middleware pone el MISMO
+ * claim, sintético, para las peticiones que todavía sirve Laravel. Así hay UN
+ * solo mecanismo de contexto. Ver `2026_09_07_100000_fase2_rls_por_claims`.
  *
- * IMPORTANTE: usa `set_config(..., false)` = ámbito de SESIÓN. Requiere que la
- * conexión de la app sea directa o el **session pooler** de Supabase
- * (pooler.supabase.com:5432), NUNCA el transaction pooler (:6543).
+ * Corre DESPUÉS de ResolveTenant (la parroquia y el acting-as del proveedor
+ * salen de App\Tenancy\TenantContext).
+ *
+ * `set_config(..., false)` = ámbito de SESIÓN → requiere conexión directa o el
+ * **session pooler** de Supabase (`:5432`), NUNCA el transaction pooler (`:6543`).
  */
 class SetPostgresRlsContext
 {
     public function handle(Request $request, Closure $next): Response
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
-            $user = $request->user();
-
-            $privilegiado = ($user && $user->hasAnyRole(['coordinador', 'super-admin', 'proveedor']))
-                || Tenant::isPrivileged();
-
-            // Los 3 set_config en UNA sola sentencia: antes eran 3 round-trips a
-            // Postgres por cada request (latencia pura Render -> Supabase).
-            // set_config(..., false) = ámbito de SESIÓN (ver nota del encabezado).
             DB::statement(
-                'SELECT set_config(?, ?, false), set_config(?, ?, false), set_config(?, ?, false)',
-                [
-                    'app.current_user_id', $user ? (string) $user->id : '',
-                    'app.current_user_privileged', $privilegiado ? 'true' : 'false',
-                    // Parroquia del contexto. Vacío = sin filtro (login, público,
-                    // proveedor sin acotar).
-                    'app.current_parroquia_id', Tenant::parroquiaId() ? (string) Tenant::parroquiaId() : '',
-                ]
+                'SELECT set_config(?, ?, false)',
+                ['request.jwt.claims', json_encode($this->claims($request))]
             );
         }
 
         return $next($request);
+    }
+
+    /**
+     * Claims sintéticos con la misma forma que produce el Custom Access Token
+     * Hook de Supabase (app_user_id / parroquia_id / roles / es_proveedor).
+     */
+    private function claims(Request $request): object
+    {
+        $user = $request->user();
+
+        // CLI (artisan/seed/tinker/queue): sin request, corre con la credencial
+        // de despliegue → se salta toda la RLS.
+        if (! $user) {
+            return Tenant::isPrivileged() ? (object) ['es_proveedor' => true] : (object) [];
+        }
+
+        $parroquiaId = Tenant::parroquiaId();
+
+        return (object) [
+            'sub' => $user->auth_id,
+            'app_user_id' => (string) $user->id,
+            // Vacío = sin filtro de parroquia (login, público, proveedor global).
+            'parroquia_id' => $parroquiaId ? (string) $parroquiaId : null,
+            'roles' => $user->getRoleNames()->values()->all(),
+            // proveedor SIN parroquia en contexto = global (ve todo). Acotado a
+            // una parroquia (X-Parroquia-Id) = solo esa.
+            'es_proveedor' => $user->hasRole('proveedor') && $parroquiaId === null,
+        ];
     }
 }
