@@ -194,8 +194,9 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
   `resolver-login`, `admin-usuarios` (alta/baja de usuarios → auth.users),
   `onboarding-parroquia`, `importar-confirmandos` (SheetJS),
   `exportar-confirmandos` (ExcelJS). Roles/permisos por RPCs SECURITY DEFINER
-  (no tocan auth.users → sin Edge Function). CORS por env `*_ALLOWED_ORIGIN`
-  (hoy `*`, endurecer en cutover).
+  (no tocan auth.users → sin Edge Function). CORS endurecido con
+  `_shared/cors.ts` + secretos `ALLOWED_ORIGINS` / `ALLOWED_ORIGIN_PATTERNS`
+  (Origin no permitido → 403; server-to-server sin Origin sigue OK).
   Patrón clave: en el proyecto cloud `service_role` NO tiene privilegios de
   tabla → toda escritura desde Edge Functions va por RPC `SECURITY DEFINER`
   (owner `postgres`); la Edge Function solo hace Auth Admin API + `admin.rpc()`.
