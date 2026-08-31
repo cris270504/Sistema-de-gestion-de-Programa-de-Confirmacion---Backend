@@ -216,8 +216,14 @@ constraints, tipos/`DOMAIN`, y triggers `BEFORE INSERT/UPDATE` para lo no expres
    "Sistema de gestión de asistencias - staging", sa-east-1) **pasa a ser
    producción**. NO se crea un proyecto separado. Antes del cutover: renombrar
    el proyecto, rotar el access token `sbp_` + DB password, endurecer CORS /
-   allowed origins, revisar el plan (Free se pausa → Pro para prod), y **borrar
-   toda la data de seed/spike/pruebas** antes de cargar la real.
+   allowed origins, y **borrar toda la data de seed/spike/pruebas** antes de
+   cargar la real.
+   - **Se queda en plan Free** (decisión 2026-08-31). Contras a mitigar sin pagar:
+     (a) el proyecto se **pausa tras ~7 días sin requests** → *pinger* externo
+     (GitHub Action / cron-job.org) cada 2–3 días a un endpoint trivial;
+     (b) Free **no trae backups gestionados** → GitHub Action programado con
+     `pg_dump` (base <5 MB) guardando el dump en repo privado / storage.
+     Pasar a Pro luego es un botón, sin migración.
 6. **BD de producción actual:** un **proyecto Supabase existente** (Postgres,
    us-west-2) al que se conecta el Laravel de Render. El sync de Fase 6 es
    Postgres→Postgres: `pg_dump --data-only` de las tablas de dominio del proyecto
