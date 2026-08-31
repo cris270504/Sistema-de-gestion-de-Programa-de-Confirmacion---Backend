@@ -7,12 +7,14 @@
 //
 // La contraseña NUNCA pasa por esta función.
 //
+// Consulta la BD directamente (SUPABASE_DB_URL) en vez de PostgREST: así funciona
+// aunque `public.users` no esté expuesta al Data API (recomendado tenerla oculta).
+//
 // Anti-enumeración: para un identificador desconocido devuelve un correo
 // sintético inexistente → el signInWithPassword posterior falla con
-// invalid_credentials igual que con una contraseña incorrecta, sin revelar si
-// el identificador existe.
+// invalid_credentials igual que con una contraseña incorrecta.
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import postgres from "npm:postgres@3";
 
 const CORS = {
   "Access-Control-Allow-Origin": Deno.env.get("RESOLVER_LOGIN_ALLOWED_ORIGIN") ?? "*",
@@ -25,6 +27,8 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
+
+const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 2 });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -43,37 +47,24 @@ Deno.serve(async (req) => {
   const value = login.trim();
   const esEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
+  try {
+    const rows = esEmail
+      ? await sql`select email, dni from public.users where lower(email) = lower(${value}) limit 1`
+      : await sql`select email, dni from public.users where dni = ${value} or lower(email) = lower(${value}) limit 1`;
 
-  // Buscamos la fila de la app por correo o por DNI. `esEmail` acota la condición
-  // para no filtrar por DNI algo que claramente es un correo (y viceversa).
-  const filtro = esEmail ? `email.eq.${value}` : `dni.eq.${value},email.eq.${value}`;
-  const { data, error } = await admin
-    .from("users")
-    .select("email, dni")
-    .or(filtro)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("resolver-login query error", error);
+    if (rows.length > 0) {
+      const u = rows[0];
+      // Correo canónico = misma regla que el backfill (20260830200000_fase1_backfill_auth).
+      const canonical = (u.email && String(u.email).trim())
+        ? String(u.email).trim().toLowerCase()
+        : `dni-${u.dni}@no-email.sistemaconfirmacion.local`;
+      return json({ email: canonical });
+    }
+  } catch (e) {
+    console.error("resolver-login db error", e);
     return json({ error: "server_error" }, 500);
   }
 
-  if (data) {
-    // Correo canónico = misma regla que el backfill (20260830200000_fase1_backfill_auth).
-    const canonical = (data.email?.trim())
-      ? data.email.trim().toLowerCase()
-      : `dni-${data.dni}@no-email.sistemaconfirmacion.local`;
-    return json({ email: canonical });
-  }
-
-  // Desconocido: correo sintético inerte (mismo shape de respuesta) → el
-  // signInWithPassword posterior falla con invalid_credentials.
   const slug = value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 60);
   return json({ email: `${slug}@unknown.invalid` });
 });

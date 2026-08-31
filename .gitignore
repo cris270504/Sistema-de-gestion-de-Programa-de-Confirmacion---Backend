@@ -28,3 +28,4 @@ Thumbs.db
 
 # Migración Supabase (Fase 0) - entorno efímero local
 .env.supabaselocal
+.env.staging
