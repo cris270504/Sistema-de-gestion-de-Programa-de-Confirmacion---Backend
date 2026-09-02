@@ -47,13 +47,29 @@ Deno.serve(async (req) => {
     // interpreta como "proveedor" para poder resolver cualquier usuario.
     const rows = await sql.begin(async (sql) => {
       await sql`select set_config('request.jwt.claims', '{"es_proveedor":true}', true)`;
-      return esEmail
-        ? sql`select email, dni from public.users where lower(email) = lower(${value}) limit 1`
-        : sql`select email, dni from public.users where dni = ${value} or lower(email) = lower(${value}) limit 1`;
+      const cond = esEmail
+        ? sql`lower(u.email) = lower(${value})`
+        : sql`u.dni = ${value} or lower(u.email) = lower(${value})`;
+      return sql`
+        select u.email, u.dni,
+               coalesce(p.activa, true) as parroquia_activa,
+               exists(
+                 select 1 from public.model_has_roles mr
+                   join public.roles r on r.id = mr.role_id
+                  where mr.model_type = 'App\\Models\\User' and mr.model_id = u.id
+                    and r.name = 'proveedor'
+               ) as es_proveedor
+          from public.users u
+          left join public.parroquias p on p.id = u.parroquia_id
+         where ${cond}
+         limit 1`;
     });
 
     if (rows.length > 0) {
       const u = rows[0];
+      if (u.parroquia_activa === false && u.es_proveedor !== true) {
+        return json({ error: "parroquia_inactiva" }, 403);
+      }
       // Correo canónico = misma regla que el backfill (20260830200000_fase1_backfill_auth).
       const canonical = (u.email && String(u.email).trim())
         ? String(u.email).trim().toLowerCase()
