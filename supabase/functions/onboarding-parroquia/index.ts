@@ -81,6 +81,15 @@ Deno.serve(async (req) => {
     return json({ message: "Nombre de la parroquia, y nombre y correo del admin son obligatorios." }, 422);
   }
 
+  // Sacramentos que gestionará la parroquia (subconjunto). La RPC valida el dominio.
+  const SAC_VALIDOS = ["bautismo", "comunion", "confirmacion"];
+  let sacramentos = Array.isArray(body.sacramentos)
+    ? [...new Set(body.sacramentos.map((s: unknown) => String(s)).filter((s) => SAC_VALIDOS.includes(s)))]
+    : SAC_VALIDOS;
+  if (sacramentos.length === 0) {
+    return json({ message: "Elige al menos un sacramento a gestionar." }, 422);
+  }
+
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
   try {
@@ -107,6 +116,7 @@ Deno.serve(async (req) => {
       p_admin_dni: body.admin_dni ? String(body.admin_dni).trim() : null,
       p_admin_auth_id: newAuthId,
       p_temp_password: tmp,
+      p_sacramentos: sacramentos,
     });
     if (rpcErr) {
       await admin.auth.admin.deleteUser(newAuthId);
