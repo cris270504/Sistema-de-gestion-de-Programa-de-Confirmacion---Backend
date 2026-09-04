@@ -106,12 +106,17 @@ Deno.serve(async (req) => {
     return json({ message: rpcErr.message }, status);
   }
 
-  const importados = (res as { importados: number } | null)?.importados ?? 0;
+  const r = res as { importados: number; omitidos?: { nombre: string; motivo: string }[] } | null;
+  const importados = r?.importados ?? 0;
+  // Filas que el propio RPC descartó (duplicadas, nombre incompleto…).
+  const omitidosRpc = (r?.omitidos ?? []).map((o) => `- ${o.nombre}: ${o.motivo}`);
 
-  if (erroresFatales.length > 0) {
+  const todasLasNotas = [...erroresFatales, ...advertencias, ...omitidosRpc];
+
+  if (erroresFatales.length > 0 || omitidosRpc.length > 0) {
     return json({
-      message: `Se importaron ${importados} confirmandos. Hubo filas omitidas.`,
-      errors: { archivo: [...erroresFatales, ...advertencias] },
+      message: `Se importaron ${importados} confirmandos. ${todasLasNotas.length} fila(s) necesitan tu atención.`,
+      errors: { archivo: todasLasNotas },
     }, 422);
   }
 
